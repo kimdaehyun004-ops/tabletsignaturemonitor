@@ -1,7 +1,24 @@
 (function () {
+  // 로컬 IP(같은 와이파이 필요)로 접속했는지, 클라우드 도메인으로 접속했는지에 따라
+  // 안내 문구를 다르게 보여준다.
+  function isLocalHost(hostname) {
+    return (
+      hostname === 'localhost' ||
+      /^127\./.test(hostname) ||
+      /^192\.168\./.test(hostname) ||
+      /^10\./.test(hostname) ||
+      /^172\.(1[6-9]|2\d|3[0-1])\./.test(hostname)
+    );
+  }
+
   fetch('/api/host-info')
     .then((r) => r.json())
     .then(({ base, tabletCount, tabletToken }) => {
+      const hintText = document.getElementById('hintText');
+      if (isLocalHost(new URL(base).hostname)) {
+        hintText.textContent += ' (태블릿과 PC가 같은 와이파이에 연결되어 있어야 합니다)';
+      }
+
       const monitorUrl = `${base}/monitor.html`;
       const monitorLink = document.getElementById('monitorLink');
       monitorLink.href = monitorUrl;
