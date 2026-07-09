@@ -13,10 +13,17 @@
 
   fetch('/api/host-info')
     .then((r) => r.json())
-    .then(({ base, tabletCount, tabletToken }) => {
+    .then(({ base, tabletCount, tabletToken, instanceName }) => {
       const hintText = document.getElementById('hintText');
       if (isLocalHost(new URL(base).hostname)) {
         hintText.textContent += ' (태블릿과 PC가 같은 와이파이에 연결되어 있어야 합니다)';
+      }
+
+      if (instanceName) {
+        document.title = `[${instanceName}] 태블릿 연결 QR코드`;
+        const badge = document.getElementById('instanceBadge');
+        badge.textContent = instanceName;
+        badge.style.display = 'inline-block';
       }
 
       const monitorUrl = `${base}/monitor.html`;

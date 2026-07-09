@@ -11,6 +11,9 @@ const PORT = process.env.PORT || 3000;
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '';
 const TABLET_TOKEN = process.env.TABLET_TOKEN || '';
 const TABLET_COUNT = parseInt(process.env.TABLET_COUNT || '10', 10);
+// 같은 코드를 v1/v2/v3처럼 여러 개 독립 배포할 때, 화면에서 어느 버전인지
+// 구분할 수 있도록 표시하는 이름 (예: "V1"). 비워두면 아무것도 표시하지 않는다.
+const INSTANCE_NAME = process.env.INSTANCE_NAME || '';
 
 if (!ADMIN_PASSWORD || !TABLET_TOKEN) {
   console.error('ADMIN_PASSWORD / TABLET_TOKEN 이 설정되지 않았습니다. .env 파일을 확인하세요 (.env.example 참고).');
@@ -37,7 +40,7 @@ const app = express();
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.get('/api/config', (req, res) => {
-  res.json({ tabletCount: TABLET_COUNT });
+  res.json({ tabletCount: TABLET_COUNT, instanceName: INSTANCE_NAME });
 });
 
 // /links.html에서 태블릿/모니터 QR코드를 만들 때 사용.
@@ -47,7 +50,7 @@ app.get('/api/host-info', (req, res) => {
   const forwardedProto = req.headers['x-forwarded-proto'];
   const protocol = forwardedProto ? forwardedProto.split(',')[0].trim() : req.protocol;
   const host = req.get('host');
-  res.json({ base: `${protocol}://${host}`, tabletCount: TABLET_COUNT, tabletToken: TABLET_TOKEN });
+  res.json({ base: `${protocol}://${host}`, tabletCount: TABLET_COUNT, tabletToken: TABLET_TOKEN, instanceName: INSTANCE_NAME });
 });
 
 const SIGNATURE_FILENAME_RE = /^tablet-(\d+)_(\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z)\.png$/;
@@ -89,7 +92,7 @@ app.get('/api/signature-file/:filename', (req, res) => {
 
 const server = app.listen(PORT, () => {
   const linksUrl = `http://localhost:${PORT}/links.html`;
-  console.log(`Tablet signature monitor listening on http://localhost:${PORT}`);
+  console.log(`Tablet signature monitor${INSTANCE_NAME ? ` [${INSTANCE_NAME}]` : ''} listening on http://localhost:${PORT}`);
   console.log(`이 PC의 네트워크 주소: http://${LAN_IP}:${PORT}`);
   console.log(`태블릿용 QR코드 페이지: ${linksUrl}`);
 

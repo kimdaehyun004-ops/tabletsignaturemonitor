@@ -303,6 +303,11 @@
       .then((r) => r.json())
       .then((cfg) => {
         tabletCount = cfg.tabletCount;
+        if (cfg.instanceName) {
+          document.title = `[${cfg.instanceName}] 서명 실시간 모니터링`;
+          document.getElementById('instanceBadge').textContent = cfg.instanceName;
+          document.getElementById('instanceBadge').style.display = 'inline-block';
+        }
         buildGrid();
         connect(password);
       });

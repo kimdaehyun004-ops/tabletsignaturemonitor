@@ -121,6 +121,17 @@
 
   function init() {
     document.getElementById('tabletLabel').textContent = `태블릿 ${tabletId}`;
+    // v1/v2/v3처럼 여러 버전을 동시에 운영할 때, 이 태블릿이 어느 버전에
+    // 연결되어 있는지 화면에서 바로 확인할 수 있게 표시한다.
+    fetch('/api/config')
+      .then((r) => r.json())
+      .then((cfg) => {
+        if (cfg.instanceName) {
+          document.getElementById('tabletLabel').textContent = `태블릿 ${tabletId} · ${cfg.instanceName}`;
+          document.title = `[${cfg.instanceName}] 서명 - 태블릿 ${tabletId}`;
+        }
+      })
+      .catch(() => {});
 
     const canvas = document.getElementById('signCanvas');
     const ctx = canvas.getContext('2d');

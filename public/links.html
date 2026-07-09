@@ -16,11 +16,21 @@
   .card .qr { display: flex; justify-content: center; margin-bottom: 8px; }
   .card a { font-size: 12px; word-break: break-all; color: #2563eb; }
   .monitor-card { background: #eef2ff; border-color: #c7d2fe; }
+  #instanceBadge {
+    display: inline-block;
+    background: #f59e0b;
+    color: #1a1200;
+    font-weight: 700;
+    font-size: 13px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    vertical-align: middle;
+  }
 </style>
 </head>
 <body>
   <div class="links-page">
-    <h1>태블릿 연결 QR코드</h1>
+    <h1>태블릿 연결 QR코드 <span id="instanceBadge" style="display:none;"></span></h1>
     <p class="hint" id="hintText">각 태블릿 카메라로 해당 번호의 QR코드를 스캔하면 자동으로 서명 화면에 연결됩니다.</p>
 
     <div class="cards">

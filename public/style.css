@@ -162,6 +162,14 @@ html, body {
   padding: 6px 10px;
 }
 .admin-link:hover { background: #20262c; }
+.instance-badge {
+  background: #f59e0b;
+  color: #1a1200;
+  font-weight: 700;
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 999px;
+}
 .grid {
   flex: 1;
   display: grid;

@@ -8,6 +8,18 @@
 
   let pw = '';
 
+  fetch('/api/config')
+    .then((r) => r.json())
+    .then((cfg) => {
+      if (cfg.instanceName) {
+        document.title = `[${cfg.instanceName}] 서명 관리자 다운로드`;
+        const badge = document.getElementById('instanceBadge');
+        badge.textContent = cfg.instanceName;
+        badge.style.display = 'inline-block';
+      }
+    })
+    .catch(() => {});
+
   function formatTime(iso) {
     if (!iso) return '';
     const d = new Date(iso);
