@@ -23,6 +23,25 @@ if (!ADMIN_PASSWORD || !TABLET_TOKEN) {
 const DATA_DIR = path.join(__dirname, 'data', 'signatures');
 fs.mkdirSync(DATA_DIR, { recursive: true });
 
+// 태블릿 서명 화면에 깔리는 배경 이미지(브랜딩 프레임). 인스턴스당 1장만 유지한다.
+const BG_FILE = path.join(__dirname, 'data', 'background.bin');
+const BG_META_FILE = path.join(__dirname, 'data', 'background.json');
+let backgroundBuffer = null;
+let backgroundMime = null;
+let backgroundVersion = 0;
+
+// 서버 재시작 후에도(디스크가 남아있다면) 배경 이미지를 복원한다.
+try {
+  if (fs.existsSync(BG_FILE) && fs.existsSync(BG_META_FILE)) {
+    backgroundBuffer = fs.readFileSync(BG_FILE);
+    const meta = JSON.parse(fs.readFileSync(BG_META_FILE, 'utf8'));
+    backgroundMime = meta.mime || 'image/png';
+    backgroundVersion = meta.version || 1;
+  }
+} catch {
+  backgroundBuffer = null;
+}
+
 function getLanIp() {
   const interfaces = os.networkInterfaces();
   for (const name of Object.keys(interfaces)) {
@@ -37,6 +56,8 @@ function getLanIp() {
 const LAN_IP = getLanIp();
 
 const app = express();
+// 배경 이미지 업로드용. 이미지를 data URL(문자열)로 받으므로 넉넉한 상한을 둔다.
+app.use(express.json({ limit: '15mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.get('/api/config', (req, res) => {
@@ -90,6 +111,58 @@ app.get('/api/signature-file/:filename', (req, res) => {
   res.sendFile(filePath);
 });
 
+// 현재 배경 이미지. 태블릿이 표시해야 하므로 비밀번호 없이 접근 가능하다.
+// version 쿼리는 브라우저 캐시를 우회하기 위한 용도이며 값 자체는 사용하지 않는다.
+app.get('/api/background', (req, res) => {
+  if (!backgroundBuffer) return res.status(404).end();
+  res.set('Content-Type', backgroundMime || 'image/png');
+  res.set('Cache-Control', 'no-cache');
+  res.send(backgroundBuffer);
+});
+
+// 배경 이미지 정보(존재 여부/버전). 태블릿·관리자 화면이 상태 파악에 사용한다.
+app.get('/api/background-info', (req, res) => {
+  res.json({ hasBackground: !!backgroundBuffer, version: backgroundVersion });
+});
+
+// 배경 이미지 업로드(교체). 관리자 비밀번호 필요.
+app.post('/api/background', (req, res) => {
+  if (!checkAdminPw(req)) return res.status(401).json({ error: 'unauthorized' });
+  const dataUrl = String((req.body && req.body.dataUrl) || '');
+  const match = dataUrl.match(/^data:(image\/(?:png|jpeg|jpg|webp|gif));base64,(.+)$/);
+  if (!match) return res.status(400).json({ error: 'png/jpeg/webp/gif 이미지만 업로드할 수 있습니다.' });
+  const buffer = Buffer.from(match[2], 'base64');
+  if (buffer.length > 12 * 1024 * 1024) return res.status(413).json({ error: '이미지가 너무 큽니다(최대 12MB).' });
+
+  backgroundBuffer = buffer;
+  backgroundMime = match[1] === 'image/jpg' ? 'image/jpeg' : match[1];
+  backgroundVersion += 1;
+  try {
+    fs.writeFileSync(BG_FILE, buffer);
+    fs.writeFileSync(BG_META_FILE, JSON.stringify({ mime: backgroundMime, version: backgroundVersion }));
+  } catch {
+    // 디스크 저장에 실패해도 메모리에는 남아있으므로 계속 서비스한다.
+  }
+  broadcastToTablets({ type: 'background', hasBackground: true, version: backgroundVersion });
+  res.json({ ok: true, version: backgroundVersion });
+});
+
+// 배경 이미지 삭제. 관리자 비밀번호 필요.
+app.delete('/api/background', (req, res) => {
+  if (!checkAdminPw(req)) return res.status(401).json({ error: 'unauthorized' });
+  backgroundBuffer = null;
+  backgroundMime = null;
+  backgroundVersion += 1;
+  try {
+    if (fs.existsSync(BG_FILE)) fs.unlinkSync(BG_FILE);
+    if (fs.existsSync(BG_META_FILE)) fs.unlinkSync(BG_META_FILE);
+  } catch {
+    // 무시
+  }
+  broadcastToTablets({ type: 'background', hasBackground: false, version: backgroundVersion });
+  res.json({ ok: true, version: backgroundVersion });
+});
+
 const server = app.listen(PORT, () => {
   const linksUrl = `http://localhost:${PORT}/links.html`;
   console.log(`Tablet signature monitor${INSTANCE_NAME ? ` [${INSTANCE_NAME}]` : ''} listening on http://localhost:${PORT}`);
@@ -135,6 +208,14 @@ function broadcastToMonitors(payload) {
   const data = JSON.stringify(payload);
   for (const ws of monitors) {
     if (ws.readyState === ws.OPEN) ws.send(data);
+  }
+}
+
+// 배경 이미지 변경 등을 모든 태블릿에 실시간으로 알린다.
+function broadcastToTablets(payload) {
+  const data = JSON.stringify(payload);
+  for (const t of tablets.values()) {
+    if (t.ws.readyState === t.ws.OPEN) t.ws.send(data);
   }
 }
 
@@ -194,6 +275,8 @@ wss.on('connection', (ws) => {
         ws.tabletId = id;
         tablets.set(id, { ws, connectedAt: Date.now(), aspect: sanitizeAspect(msg.aspect) });
         ws.send(JSON.stringify({ type: 'auth_ok' }));
+        // 접속 직후 현재 배경 이미지 상태를 알려줘 바로 표시하게 한다.
+        ws.send(JSON.stringify({ type: 'background', hasBackground: !!backgroundBuffer, version: backgroundVersion }));
         broadcastStatus();
         return;
       }

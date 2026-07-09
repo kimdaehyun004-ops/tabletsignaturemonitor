@@ -50,18 +50,33 @@ html, body {
   position: relative;
   flex: 1;
   min-height: 0;
+  background: #fff;
+}
+
+/* 관리자가 올린 배경 이미지(브랜딩 프레임). 찌그러짐 없이 전체가 보이도록
+   contain으로 가운데 정렬해서 캔버스 뒤에 깔린다. */
+.sign-bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
 }
 
 #signCanvas {
+  position: relative;
   width: 100%;
   height: 100%;
   touch-action: none;
-  background: #fff;
+  background: transparent;
   cursor: crosshair;
   display: block;
 }
 
-/* 가로/세로 어느 방향으로 써도 화면 정중앙에 맞춰 서명하도록 안내하는 기준선 */
+/* 가로/세로 어느 방향으로 써도 화면 정중앙에 맞춰 서명하도록 안내하는 기준선.
+   배경 이미지가 있을 때는 프레임이 안내 역할을 하므로 숨긴다. */
 .sign-guide-line {
   position: absolute;
   left: 6%;
@@ -70,6 +85,7 @@ html, body {
   border-top: 2px dashed #d0d0d0;
   pointer-events: none;
 }
+.canvas-wrap.has-bg .sign-guide-line { display: none; }
 
 .sign-actions {
   display: flex;
@@ -286,3 +302,43 @@ html, body {
 }
 .sig-card a { color: #3b82f6; text-decoration: none; font-size: 12px; }
 .empty-hint { color: #888; padding: 20px 0; }
+
+.bg-section {
+  background: #1a1f24;
+  border: 1px solid #2a2f36;
+  border-radius: 10px;
+  padding: 16px;
+  margin-bottom: 24px;
+}
+.bg-section h2 { font-size: 16px; margin: 0 0 6px; }
+.bg-hint { color: #9aa4b2; font-size: 13px; margin: 0 0 14px; }
+.bg-row { display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-start; }
+.bg-preview {
+  width: 280px;
+  height: 180px;
+  border: 1px dashed #3a4250;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  color: #999;
+  font-size: 13px;
+  overflow: hidden;
+  flex: 0 0 auto;
+}
+.bg-preview img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.bg-controls { display: flex; flex-direction: column; gap: 10px; }
+.bg-controls input[type='file'] { color: #ccc; font-size: 13px; }
+.bg-controls button {
+  padding: 9px 14px;
+  border-radius: 6px;
+  border: 1px solid #3a4250;
+  background: #2563eb;
+  color: #fff;
+  cursor: pointer;
+  font-size: 14px;
+}
+.bg-controls button.danger { background: #1a1f24; color: #f87171; border-color: #5a2a2a; }
+.bg-status { font-size: 13px; color: #9fe08a; min-height: 18px; }
+.sig-title { font-size: 16px; margin: 0 0 12px; }

@@ -21,6 +21,24 @@
       <a href="monitor.html" target="_blank" rel="noopener" class="admin-link">실시간 모니터링 ↗</a>
       <button id="refreshBtn">새로고침</button>
     </div>
+    <div class="bg-section">
+      <h2>태블릿 배경 이미지</h2>
+      <p class="bg-hint">이미지를 올리면 이 버전의 모든 태블릿 서명 화면에 배경으로 즉시 적용됩니다. (서명은 배경 위에 그려지며, 저장되는 파일은 서명 획만 포함됩니다.)</p>
+      <div class="bg-row">
+        <div class="bg-preview" id="bgPreview">
+          <span id="bgPreviewEmpty">현재 배경 없음</span>
+          <img id="bgPreviewImg" alt="" style="display:none;" />
+        </div>
+        <div class="bg-controls">
+          <input type="file" id="bgFileInput" accept="image/png,image/jpeg,image/webp,image/gif" />
+          <button id="bgUploadBtn">업로드 / 교체</button>
+          <button id="bgRemoveBtn" class="danger">배경 삭제</button>
+          <div class="bg-status" id="bgStatus"></div>
+        </div>
+      </div>
+    </div>
+
+    <h2 class="sig-title">저장된 서명</h2>
     <div id="sigGrid" class="sig-grid"></div>
     <div id="emptyHint" class="empty-hint" style="display:none;">아직 저장된 서명이 없습니다.</div>
   </div>

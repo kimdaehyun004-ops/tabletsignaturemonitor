@@ -158,6 +158,23 @@
     let flushScheduled = false;
     let drawing = false;
 
+    const signBg = document.getElementById('signBg');
+    const canvasWrap = document.getElementById('canvasWrap');
+
+    // 관리자가 올린 배경 이미지를 화면에 표시하거나 숨긴다.
+    // version 값을 붙여 이미지가 바뀌면 브라우저 캐시를 우회해 새로 불러온다.
+    function applyBackground(hasBackground, version) {
+      if (hasBackground) {
+        signBg.src = `/api/background?v=${version || 0}`;
+        signBg.style.display = 'block';
+        canvasWrap.classList.add('has-bg');
+      } else {
+        signBg.style.display = 'none';
+        signBg.removeAttribute('src');
+        canvasWrap.classList.remove('has-bg');
+      }
+    }
+
     // 태블릿마다 실제 화면 비율이 다를 수 있으므로, 모니터링 화면이 이 비율을
     // 그대로 따라 그려야 서명이 늘어나거나 찌그러지지 않고 원본과 똑같이 보인다.
     function currentAspect() {
@@ -207,6 +224,8 @@
           setStatus(false, '인증 실패: ' + msg.message);
           localStorage.removeItem('tabletToken');
           ws.close();
+        } else if (msg.type === 'background') {
+          applyBackground(msg.hasBackground, msg.version);
         }
       });
 
