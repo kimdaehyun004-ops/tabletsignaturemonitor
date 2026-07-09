@@ -182,6 +182,23 @@
       return rect.height > 0 ? rect.width / rect.height : 4 / 3;
     }
 
+    // 지금까지 그린 서명 획을 정규화 좌표(0~1)로 보관해, 화면 회전 등으로
+    // 캔버스 크기가 다시 잡혀도 그대로 다시 그려서 서명이 지워지지 않게 한다.
+    let strokeHistory = [];
+
+    function redraw() {
+      const rect = canvas.getBoundingClientRect();
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const drawer = createSmoothDrawer(ctx);
+      for (const p of strokeHistory) {
+        const px = p.x * rect.width;
+        const py = p.y * rect.height;
+        const width = p.w ? p.w * rect.width : undefined;
+        if (p.type === 'start') drawer.reset(px, py, width);
+        else if (p.type === 'point') drawer.addPoint(px, py, width);
+      }
+    }
+
     function resizeCanvas() {
       const rect = canvas.getBoundingClientRect();
       const ratio = window.devicePixelRatio || 1;
@@ -192,6 +209,8 @@
       ctx.lineCap = 'round';
       ctx.lineWidth = 3;
       ctx.strokeStyle = '#111';
+      // 크기를 다시 잡으면 캔버스가 비워지므로, 기존 서명을 다시 그려 복원한다.
+      redraw();
       if (ws && ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ type: 'aspect', aspect: currentAspect() }));
       }
@@ -248,6 +267,8 @@
     }
 
     function queuePoint(type, x, y, w) {
+      // 회전 시 복원을 위해 로컬에도 보관하고, 모니터로도 전송한다.
+      strokeHistory.push({ type, x, y, w });
       pendingPoints.push({ type, x, y, w });
       if (!flushScheduled) {
         flushScheduled = true;
@@ -308,6 +329,7 @@
     canvas.addEventListener('pointercancel', endStroke);
 
     document.getElementById('clearBtn').addEventListener('click', () => {
+      strokeHistory = [];
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       if (ws && ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ type: 'clear' }));
@@ -322,6 +344,7 @@
       toast.classList.add('show');
       setTimeout(() => toast.classList.remove('show'), 1500);
       setTimeout(() => {
+        strokeHistory = [];
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         if (ws && ws.readyState === WebSocket.OPEN) {
           ws.send(JSON.stringify({ type: 'clear' }));
