@@ -50,7 +50,10 @@
 
   let ws;
   let tabletCount = 10;
-  const cells = new Map(); // id -> { canvas, ctx, header, content, wrap, dot, savedBadge, aspect }
+  // 접속 안 된 칸에 연결 QR코드를 만들기 위한 정보 (관리자 로그인 후 채워짐).
+  let hostBase = '';
+  let tabletToken = '';
+  const cells = new Map(); // id -> { canvas, ctx, header, content, wrap, dot, savedBadge, qrHolder, qrBuilt, aspect }
 
   function buildGrid() {
     grid.innerHTML = '';
@@ -83,12 +86,24 @@
       ctx.lineWidth = 3;
       ctx.strokeStyle = '#111';
 
+      // 접속 전 안내: "스캔해서 연결" QR코드가 뜨는 오버레이.
+      const qrHolder = document.createElement('div');
+      qrHolder.className = 'cell-qr';
+      const qrInner = document.createElement('div');
+      qrInner.className = 'cell-qr-inner';
+      const qrLabel = document.createElement('div');
+      qrLabel.className = 'cell-qr-label';
+      qrLabel.textContent = `태블릿 ${id} · 스캔해서 연결`;
+      qrHolder.appendChild(qrInner);
+      qrHolder.appendChild(qrLabel);
+
       content.appendChild(canvas);
+      content.appendChild(qrHolder);
       cell.appendChild(header);
       cell.appendChild(content);
       grid.appendChild(cell);
 
-      cells.set(id, { canvas, ctx, header, content, wrap: cell, dot, savedBadge, aspect: null, drawer: createSmoothDrawer(ctx), queue: [] });
+      cells.set(id, { id, canvas, ctx, header, content, wrap: cell, dot, savedBadge, qrHolder, qrInner, qrBuilt: false, aspect: null, drawer: createSmoothDrawer(ctx), queue: [] });
     }
     layoutGrid();
   }
@@ -215,12 +230,28 @@
   }
   requestAnimationFrame(tickQueues);
 
+  // 접속 안 된 칸에 그 태블릿 전용 연결 QR코드를 만든다. (한 번만 생성)
+  function buildCellQr(c) {
+    if (c.qrBuilt || !hostBase || typeof QRCode === 'undefined') return;
+    const signUrl = `${hostBase}/sign.html?id=${c.id}&token=${encodeURIComponent(tabletToken)}`;
+    c.qrInner.innerHTML = '';
+    new QRCode(c.qrInner, { text: signUrl, width: 200, height: 200, correctLevel: QRCode.CorrectLevel.M });
+    c.qrBuilt = true;
+  }
+
+  function buildAllQr() {
+    for (const c of cells.values()) buildCellQr(c);
+  }
+
   function applyStatus(list) {
     list.forEach(({ id, online, aspect }) => {
       const c = cells.get(id);
       if (!c) return;
       c.wrap.classList.toggle('offline', !online);
       c.dot.classList.toggle('online', online);
+      // 접속 안 된 칸에는 연결 QR코드를 보여주고, 접속되면 숨긴다.
+      if (!online) buildCellQr(c);
+      c.qrHolder.style.display = online ? 'none' : 'flex';
       // 이 칸의 캔버스만 실제 태블릿 비율에 맞게 다시 맞춘다.
       // 그리드 전체 배치(칸 개수·크기)는 절대 바뀌지 않는다.
       if (online && aspect && Math.abs(aspect - (c.aspect || 0)) > 0.01) {
@@ -311,6 +342,15 @@
         buildGrid();
         connect(password);
       });
+    // 접속 안 된 칸에 띄울 연결 QR코드를 만들기 위해 주소·토큰을 가져온다.
+    fetch('/api/host-info')
+      .then((r) => r.json())
+      .then(({ base, tabletToken: token }) => {
+        hostBase = base;
+        tabletToken = token;
+        buildAllQr();
+      })
+      .catch(() => {});
   }
 
   document.getElementById('loginBtn').addEventListener('click', () => {

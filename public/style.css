@@ -203,7 +203,9 @@ html, body {
   display: flex;
   flex-direction: column;
 }
-.cell.offline { opacity: 0.45; }
+/* 접속 안 된 칸은 헤더 점(빨강)과 연결 QR코드로 구분되므로 전체를 흐리게
+   하지 않는다 (흐리게 하면 QR 스캔이 어려워짐). 캔버스 영역만 살짝 어둡게. */
+.cell.offline .cell-content canvas { opacity: 0.4; }
 .cell-header {
   display: flex;
   align-items: center;
@@ -224,6 +226,7 @@ html, body {
 }
 .saved-badge.show { opacity: 1; transform: translateY(0); }
 .cell-content {
+  position: relative;
   flex: 1;
   min-height: 0;
   display: flex;
@@ -234,6 +237,38 @@ html, body {
 .cell-content canvas {
   background: #fff;
   display: block;
+}
+/* 접속 안 된 칸에 뜨는 연결 QR코드 오버레이 */
+.cell-qr {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px;
+  background: #ffffff;
+}
+.cell-qr-inner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 78%;
+  max-height: 78%;
+}
+.cell-qr-inner canvas,
+.cell-qr-inner img {
+  width: 100%;
+  height: auto;
+  max-width: 100%;
+  max-height: 100%;
+  image-rendering: pixelated;
+}
+.cell-qr-label {
+  font-size: 12px;
+  color: #333;
+  text-align: center;
 }
 .cell.flash { box-shadow: 0 0 0 3px #16a34a inset; transition: box-shadow 0.3s; }
 
