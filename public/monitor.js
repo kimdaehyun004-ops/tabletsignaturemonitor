@@ -40,12 +40,9 @@
   const connStatus = document.getElementById('connStatus');
   const recentList = document.getElementById('recentList');
 
-  const CELL_W = 640;
-  const CELL_H = 480;
-
   let ws;
   let tabletCount = 10;
-  const cells = new Map(); // id -> { canvas, ctx, wrap, dot }
+  const cells = new Map(); // id -> { canvas, ctx, wrap, dot, savedBadge, savedTimer }
 
   function buildGrid() {
     grid.innerHTML = '';
@@ -57,15 +54,18 @@
       const header = document.createElement('div');
       header.className = 'cell-header';
       const label = document.createElement('span');
+      label.className = 'tablet-name';
       label.textContent = `태블릿 ${id}`;
+      const savedBadge = document.createElement('span');
+      savedBadge.className = 'saved-badge';
+      savedBadge.textContent = '● 저장됨';
       const dot = document.createElement('span');
       dot.className = 'status-dot';
       header.appendChild(label);
+      header.appendChild(savedBadge);
       header.appendChild(dot);
 
       const canvas = document.createElement('canvas');
-      canvas.width = CELL_W;
-      canvas.height = CELL_H;
       const ctx = canvas.getContext('2d');
       ctx.lineJoin = 'round';
       ctx.lineCap = 'round';
@@ -76,9 +76,34 @@
       cell.appendChild(canvas);
       grid.appendChild(cell);
 
-      cells.set(id, { canvas, ctx, wrap: cell, dot, drawer: createSmoothDrawer(ctx), queue: [] });
+      cells.set(id, { canvas, ctx, wrap: cell, dot, savedBadge, savedTimer: null, drawer: createSmoothDrawer(ctx), queue: [] });
+    }
+    resizeAllCanvases();
+  }
+
+  // 캔버스 해상도를 실제로 화면에 표시되는 셀 크기에 맞춰서, 하단에
+  // 남는 여백 없이 셀 전체를 꽉 채우고 그림도 흐려지지 않게 한다.
+  function resizeAllCanvases() {
+    const ratio = window.devicePixelRatio || 1;
+    for (const c of cells.values()) {
+      const rect = c.canvas.getBoundingClientRect();
+      const w = Math.max(1, Math.round(rect.width * ratio));
+      const h = Math.max(1, Math.round(rect.height * ratio));
+      if (c.canvas.width !== w || c.canvas.height !== h) {
+        c.canvas.width = w;
+        c.canvas.height = h;
+        c.ctx.lineJoin = 'round';
+        c.ctx.lineCap = 'round';
+        c.ctx.lineWidth = 3;
+        c.ctx.strokeStyle = '#111';
+      }
     }
   }
+  let resizeDebounce;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeDebounce);
+    resizeDebounce = setTimeout(resizeAllCanvases, 200);
+  });
 
   // 인터넷을 통해 오는 그리기 데이터는 도착 간격이 고르지 않을 수 있다.
   // 도착 즉시 그리는 대신 큐에 모았다가 매 프레임 일정한 속도로 그려주면
@@ -128,6 +153,10 @@
     if (c) {
       c.wrap.classList.add('flash');
       setTimeout(() => c.wrap.classList.remove('flash'), 700);
+
+      c.savedBadge.classList.add('show');
+      clearTimeout(c.savedTimer);
+      c.savedTimer = setTimeout(() => c.savedBadge.classList.remove('show'), 3000);
     }
     const item = document.createElement('div');
     item.className = 'recent-item';
@@ -157,6 +186,9 @@
         sessionStorage.setItem('monitorPassword', password);
         loginEl.style.display = 'none';
         monitorEl.style.display = 'flex';
+        // 로그인 화면이 display:none이었을 때 만든 캔버스는 크기가 0으로 잡히므로,
+        // 그리드가 실제로 화면에 보이게 된 뒤 다시 한번 실제 크기에 맞춰준다.
+        requestAnimationFrame(resizeAllCanvases);
         connStatus.textContent = '연결됨';
       } else if (msg.type === 'auth_error') {
         loginError.textContent = msg.message;
