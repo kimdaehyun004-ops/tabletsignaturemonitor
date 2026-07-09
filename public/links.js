@@ -30,6 +30,8 @@
       const monitorLink = document.getElementById('monitorLink');
       monitorLink.href = monitorUrl;
       monitorLink.textContent = monitorUrl;
+      monitorLink.target = '_blank';
+      monitorLink.rel = 'noopener';
       new QRCode(document.getElementById('monitorQr'), { text: monitorUrl, width: 150, height: 150 });
 
       const cards = document.getElementById('tabletCards');
