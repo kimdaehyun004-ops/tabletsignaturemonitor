@@ -103,7 +103,7 @@
       cell.appendChild(content);
       grid.appendChild(cell);
 
-      cells.set(id, { id, canvas, ctx, header, content, wrap: cell, dot, savedBadge, qrHolder, qrInner, qrBuilt: false, aspect: null, drawer: createSmoothDrawer(ctx), queue: [] });
+      cells.set(id, { id, canvas, ctx, header, content, wrap: cell, dot, savedBadge, qrHolder, qrInner, qrBuilt: false, aspect: null, drawer: createSmoothDrawer(ctx), queue: [], history: [] });
     }
     layoutGrid();
   }
@@ -200,6 +200,23 @@
     c.ctx.lineCap = 'round';
     c.ctx.lineWidth = 3;
     c.ctx.strokeStyle = '#111';
+    // 캔버스 크기를 다시 잡으면 내용이 지워지므로, 지금까지 받은 서명을 다시 그린다.
+    replayHistory(c);
+  }
+
+  // 그 칸에 지금까지 그려진 서명을 정규화 좌표로 보관해뒀다가, 캔버스 크기가
+  // 바뀌면(창 크기 변경 등) 다시 그려 모니터에서도 서명이 지워지지 않게 한다.
+  function replayHistory(c) {
+    c.ctx.clearRect(0, 0, c.canvas.width, c.canvas.height);
+    const drawer = createSmoothDrawer(c.ctx);
+    for (const p of c.history) {
+      const px = p.x * c.canvas.width;
+      const py = p.y * c.canvas.height;
+      const width = p.w ? p.w * c.canvas.width : undefined;
+      if (p.type === 'start') drawer.reset(px, py, width);
+      else if (p.type === 'point') drawer.addPoint(px, py, width);
+    }
+    c.drawer = drawer;
   }
 
   let resizeDebounce;
@@ -224,6 +241,8 @@
         const width = p.w ? p.w * c.canvas.width : undefined;
         if (p.type === 'start') c.drawer.reset(px, py, width);
         else if (p.type === 'point') c.drawer.addPoint(px, py, width);
+        // 크기 변경 시 다시 그릴 수 있도록 정규화 좌표를 보관한다.
+        if (p.type === 'start' || p.type === 'point') c.history.push(p);
       }
     }
     requestAnimationFrame(tickQueues);
@@ -252,9 +271,10 @@
       // 접속 안 된 칸에는 연결 QR코드를 보여주고, 접속되면 숨긴다.
       if (!online) buildCellQr(c);
       c.qrHolder.style.display = online ? 'none' : 'flex';
-      // 이 칸의 캔버스만 실제 태블릿 비율에 맞게 다시 맞춘다.
-      // 그리드 전체 배치(칸 개수·크기)는 절대 바뀌지 않는다.
-      if (online && aspect && Math.abs(aspect - (c.aspect || 0)) > 0.01) {
+      // 처음 접속 시 잡힌 "가로형" 비율로 이 칸을 고정한다. 이후 태블릿이
+      // 회전해 비율이 바뀌어도 모니터 칸은 그대로 유지되므로(다시 크기를
+      // 잡지 않으므로) 서명이 지워지지 않는다. (세로 비율은 무시)
+      if (online && aspect && aspect >= 1 && c.aspect == null) {
         c.aspect = aspect;
         fitCanvas(c);
       }
@@ -276,6 +296,7 @@
     const c = cells.get(id);
     if (!c) return;
     c.queue.length = 0;
+    c.history.length = 0;
     c.ctx.clearRect(0, 0, c.canvas.width, c.canvas.height);
   }
 
