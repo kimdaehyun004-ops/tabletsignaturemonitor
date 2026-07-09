@@ -35,7 +35,6 @@ const LAN_IP = getLanIp();
 
 const app = express();
 app.use(express.static(path.join(__dirname, 'public')));
-app.use('/signatures', express.static(DATA_DIR));
 
 app.get('/api/config', (req, res) => {
   res.json({ tabletCount: TABLET_COUNT });
@@ -51,14 +50,41 @@ app.get('/api/host-info', (req, res) => {
   res.json({ base: `${protocol}://${host}`, tabletCount: TABLET_COUNT, tabletToken: TABLET_TOKEN });
 });
 
+const SIGNATURE_FILENAME_RE = /^tablet-(\d+)_(\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z)\.png$/;
+
+function checkAdminPw(req) {
+  return timingSafeEqual(req.query.pw || '', ADMIN_PASSWORD);
+}
+
+function parseSignatureFilename(filename) {
+  const m = filename.match(SIGNATURE_FILENAME_RE);
+  if (!m) return { tabletId: null, timestamp: null };
+  // 저장 시 콜론/마침표를 하이픈으로 바꿔둔 걸 다시 ISO 형식으로 복원한다.
+  const [, tabletId, encoded] = m;
+  const iso = encoded.replace(/T(\d{2})-(\d{2})-(\d{2})-(\d{3})Z$/, 'T$1:$2:$3.$4Z');
+  return { tabletId: parseInt(tabletId, 10), timestamp: iso };
+}
+
+// 관리자 페이지(admin.html) 전용: 저장된 서명 목록. 비밀번호(pw) 없이는 접근할 수 없다.
 app.get('/api/signatures', (req, res) => {
+  if (!checkAdminPw(req)) return res.status(401).json({ error: 'unauthorized' });
   const files = fs
     .readdirSync(DATA_DIR)
     .filter((f) => f.endsWith('.png'))
     .sort()
     .reverse()
-    .slice(0, 100);
-  res.json(files);
+    .slice(0, 300);
+  res.json(files.map((filename) => ({ filename, ...parseSignatureFilename(filename) })));
+});
+
+// 저장된 서명 이미지 다운로드. 이 역시 비밀번호 없이는 접근할 수 없다.
+app.get('/api/signature-file/:filename', (req, res) => {
+  if (!checkAdminPw(req)) return res.status(401).send('unauthorized');
+  const { filename } = req.params;
+  if (!SIGNATURE_FILENAME_RE.test(filename)) return res.status(400).send('bad filename');
+  const filePath = path.join(DATA_DIR, filename);
+  if (!fs.existsSync(filePath)) return res.status(404).send('not found');
+  res.sendFile(filePath);
 });
 
 const server = app.listen(PORT, () => {
@@ -185,10 +211,10 @@ wss.on('connection', (ws) => {
       const buffer = Buffer.from(match[1], 'base64');
       // 10MB 상한선으로 비정상적으로 큰 업로드 방지
       if (buffer.length > 10 * 1024 * 1024) return;
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-      const filename = `tablet-${id}_${timestamp}.png`;
+      const now = new Date();
+      const filename = `tablet-${id}_${now.toISOString().replace(/[:.]/g, '-')}.png`;
       fs.writeFileSync(path.join(DATA_DIR, filename), buffer);
-      broadcastToMonitors({ type: 'saved', id, filename, timestamp });
+      broadcastToMonitors({ type: 'saved', id, filename, timestamp: now.toISOString() });
       return;
     }
   });

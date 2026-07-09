@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>서명 관리자 다운로드</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="login" class="login-box">
+    <h2>관리자 접속</h2>
+    <input id="passwordInput" type="password" placeholder="관리자 비밀번호" />
+    <button id="loginBtn">입장</button>
+    <div class="login-error" id="loginError"></div>
+  </div>
+
+  <div id="adminPage" class="admin-page" style="display:none;">
+    <div class="admin-header">
+      <h1>저장된 서명 목록</h1>
+      <a href="monitor.html" class="admin-link">실시간 모니터링으로</a>
+      <button id="refreshBtn">새로고침</button>
+    </div>
+    <div id="sigGrid" class="sig-grid"></div>
+    <div id="emptyHint" class="empty-hint" style="display:none;">아직 저장된 서명이 없습니다.</div>
+  </div>
+
+  <script src="admin.js"></script>
+</body>
+</html>

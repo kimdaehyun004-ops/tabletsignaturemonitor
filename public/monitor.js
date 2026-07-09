@@ -38,11 +38,14 @@
   const loginError = document.getElementById('loginError');
   const grid = document.getElementById('grid');
   const connStatus = document.getElementById('connStatus');
-  const recentList = document.getElementById('recentList');
+
+  // 태블릿은 항상 가로형으로 사용하므로, 화면 찌그러짐 없이 이 비율을 그대로 유지한다.
+  const ASPECT_RATIO = 4 / 3;
+  const GRID_GAP = 10; // style.css .grid의 gap 값과 반드시 일치시켜야 한다.
 
   let ws;
   let tabletCount = 10;
-  const cells = new Map(); // id -> { canvas, ctx, wrap, dot, savedBadge, savedTimer }
+  const cells = new Map(); // id -> { canvas, ctx, header, wrap, dot, savedBadge, savedTimer }
 
   function buildGrid() {
     grid.innerHTML = '';
@@ -76,13 +79,74 @@
       cell.appendChild(canvas);
       grid.appendChild(cell);
 
-      cells.set(id, { canvas, ctx, wrap: cell, dot, savedBadge, savedTimer: null, drawer: createSmoothDrawer(ctx), queue: [] });
+      cells.set(id, { canvas, ctx, header, wrap: cell, dot, savedBadge, savedTimer: null, drawer: createSmoothDrawer(ctx), queue: [] });
     }
+    layoutGrid();
+  }
+
+  // 태블릿 개수(N)와 가로형 비율을 그대로 유지하면서, 스크롤 없이 화면 안에
+  // 전부 들어가도록 열/행 개수와 각 칸의 정확한 픽셀 크기를 계산한다.
+  // (화상회의 프로그램의 참가자 그리드 배치와 같은 방식)
+  function computeLayout(containerW, containerH, count, headerHeight) {
+    let best = null;
+    for (let cols = 1; cols <= count; cols++) {
+      const rows = Math.ceil(count / cols);
+
+      const cellWFromWidth = (containerW - GRID_GAP * (cols - 1)) / cols;
+      const cellHFromWidth = cellWFromWidth / ASPECT_RATIO + headerHeight;
+
+      const cellHFromHeight = (containerH - GRID_GAP * (rows - 1)) / rows;
+      const canvasHFromHeight = cellHFromHeight - headerHeight;
+
+      let cellW;
+      let cellH;
+      if (cellHFromWidth <= cellHFromHeight) {
+        cellW = cellWFromWidth;
+        cellH = cellHFromWidth;
+      } else {
+        if (canvasHFromHeight <= 0) continue; // 이 열 구성으로는 헤더 높이도 안 나옴
+        cellH = cellHFromHeight;
+        cellW = canvasHFromHeight * ASPECT_RATIO;
+      }
+      if (cellW <= 0 || cellH <= 0) continue;
+
+      // 소수점 반올림으로 인해 스크롤이 생기지 않도록, 계산된 크기보다
+      // 한 픽셀 더 작게 내림 처리해 항상 컨테이너 안쪽에 들어오게 한다.
+      cellW = Math.floor(cellW) - 1;
+      cellH = Math.floor(cellH) - 1;
+      if (cellW <= 0 || cellH <= 0) continue;
+
+      const area = cellW * cellH;
+      if (!best || area > best.area) {
+        best = { cols, rows, cellW, cellH, area };
+      }
+    }
+    return best;
+  }
+
+  function layoutGrid() {
+    if (cells.size === 0) return;
+    const firstCell = cells.values().next().value;
+    const headerHeight = firstCell.header.getBoundingClientRect().height || 34;
+    // clientWidth/Height는 padding을 포함하므로, 실제로 트랙에 쓸 수 있는
+    // 안쪽 공간을 구하려면 padding만큼 빼야 스크롤 없이 정확히 들어맞는다.
+    const gridStyle = window.getComputedStyle(grid);
+    const paddingX = parseFloat(gridStyle.paddingLeft) + parseFloat(gridStyle.paddingRight);
+    const paddingY = parseFloat(gridStyle.paddingTop) + parseFloat(gridStyle.paddingBottom);
+    const containerW = grid.clientWidth - paddingX;
+    const containerH = grid.clientHeight - paddingY;
+    if (containerW <= 0 || containerH <= 0) return;
+
+    const layout = computeLayout(containerW, containerH, tabletCount, headerHeight);
+    if (!layout) return;
+
+    grid.style.gridTemplateColumns = `repeat(${layout.cols}, ${layout.cellW}px)`;
+    grid.style.gridTemplateRows = `repeat(${layout.rows}, ${layout.cellH}px)`;
+
     resizeAllCanvases();
   }
 
-  // 캔버스 해상도를 실제로 화면에 표시되는 셀 크기에 맞춰서, 하단에
-  // 남는 여백 없이 셀 전체를 꽉 채우고 그림도 흐려지지 않게 한다.
+  // 캔버스 해상도를 실제로 화면에 표시되는 크기에 맞춰서 흐려지지 않게 한다.
   function resizeAllCanvases() {
     const ratio = window.devicePixelRatio || 1;
     for (const c of cells.values()) {
@@ -102,7 +166,7 @@
   let resizeDebounce;
   window.addEventListener('resize', () => {
     clearTimeout(resizeDebounce);
-    resizeDebounce = setTimeout(resizeAllCanvases, 200);
+    resizeDebounce = setTimeout(layoutGrid, 200);
   });
 
   // 인터넷을 통해 오는 그리기 데이터는 도착 간격이 고르지 않을 수 있다.
@@ -148,28 +212,15 @@
     c.ctx.clearRect(0, 0, c.canvas.width, c.canvas.height);
   }
 
-  function flashSaved(id, filename, timestamp) {
+  function flashSaved(id) {
     const c = cells.get(id);
-    if (c) {
-      c.wrap.classList.add('flash');
-      setTimeout(() => c.wrap.classList.remove('flash'), 700);
+    if (!c) return;
+    c.wrap.classList.add('flash');
+    setTimeout(() => c.wrap.classList.remove('flash'), 700);
 
-      c.savedBadge.classList.add('show');
-      clearTimeout(c.savedTimer);
-      c.savedTimer = setTimeout(() => c.savedBadge.classList.remove('show'), 3000);
-    }
-    const item = document.createElement('div');
-    item.className = 'recent-item';
-    const img = document.createElement('img');
-    img.src = `/signatures/${encodeURIComponent(filename)}`;
-    const span = document.createElement('span');
-    span.textContent = `태블릿 ${id} · ${new Date(timestamp).toLocaleTimeString('ko-KR')}`;
-    item.appendChild(img);
-    item.appendChild(span);
-    recentList.prepend(item);
-    while (recentList.children.length > 30) {
-      recentList.removeChild(recentList.lastChild);
-    }
+    c.savedBadge.classList.add('show');
+    clearTimeout(c.savedTimer);
+    c.savedTimer = setTimeout(() => c.savedBadge.classList.remove('show'), 3000);
   }
 
   function connect(password) {
@@ -186,9 +237,9 @@
         sessionStorage.setItem('monitorPassword', password);
         loginEl.style.display = 'none';
         monitorEl.style.display = 'flex';
-        // 로그인 화면이 display:none이었을 때 만든 캔버스는 크기가 0으로 잡히므로,
-        // 그리드가 실제로 화면에 보이게 된 뒤 다시 한번 실제 크기에 맞춰준다.
-        requestAnimationFrame(resizeAllCanvases);
+        // 로그인 화면이 display:none이었을 때는 크기를 잴 수 없으므로,
+        // 그리드가 실제로 화면에 보이게 된 뒤 다시 한번 배치를 계산한다.
+        requestAnimationFrame(layoutGrid);
         connStatus.textContent = '연결됨';
       } else if (msg.type === 'auth_error') {
         loginError.textContent = msg.message;
@@ -200,7 +251,7 @@
       } else if (msg.type === 'clear') {
         applyClear(msg.id);
       } else if (msg.type === 'saved') {
-        flashSaved(msg.id, msg.filename, msg.timestamp);
+        flashSaved(msg.id);
       }
     });
 
