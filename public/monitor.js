@@ -271,10 +271,10 @@
       // 접속 안 된 칸에는 연결 QR코드를 보여주고, 접속되면 숨긴다.
       if (!online) buildCellQr(c);
       c.qrHolder.style.display = online ? 'none' : 'flex';
-      // 처음 접속 시 잡힌 "가로형" 비율로 이 칸을 고정한다. 이후 태블릿이
-      // 회전해 비율이 바뀌어도 모니터 칸은 그대로 유지되므로(다시 크기를
-      // 잡지 않으므로) 서명이 지워지지 않는다. (세로 비율은 무시)
-      if (online && aspect && aspect >= 1 && c.aspect == null) {
+      // 태블릿의 실제 화면 비율을 그대로 따라가 원본과 똑같은 비율로 그린다
+      // (찌그러지지 않음). 비율이 바뀌어 캔버스를 다시 잡을 때는 fitCanvas가
+      // 지금까지의 서명을 다시 그려주므로(replayHistory) 지워지지 않는다.
+      if (online && aspect && Math.abs(aspect - (c.aspect || 0)) > 0.01) {
         c.aspect = aspect;
         fitCanvas(c);
       }
