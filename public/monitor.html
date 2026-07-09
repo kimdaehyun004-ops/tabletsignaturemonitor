@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>서명 실시간 모니터링</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="login" class="login-box">
+    <h2>모니터링 접속</h2>
+    <input id="passwordInput" type="password" placeholder="관리자 비밀번호" />
+    <button id="loginBtn">입장</button>
+    <div class="login-error" id="loginError"></div>
+  </div>
+
+  <div id="monitorPage" class="monitor-page" style="display:none;">
+    <div class="monitor-header">
+      <h1>태블릿 서명 실시간 모니터링</h1>
+      <span id="connStatus"></span>
+    </div>
+    <div class="main-area">
+      <div class="grid" id="grid"></div>
+      <div class="recent-panel">
+        <h2>최근 완료된 서명</h2>
+        <div id="recentList"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="monitor.js"></script>
+</body>
+</html>

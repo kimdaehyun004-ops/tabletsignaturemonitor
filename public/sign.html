@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>서명 - 태블릿</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="setup" class="setup-box" style="display:none;">
+    <h2>태블릿 설정</h2>
+    <p>이 태블릿의 번호와 접속 토큰을 입력하세요.</p>
+    <select id="idSelect"></select>
+    <input id="tokenInput" type="password" placeholder="접속 토큰" />
+    <button id="startBtn">시작</button>
+    <div class="setup-error" id="setupError"></div>
+  </div>
+
+  <div id="signPage" class="sign-page" style="display:none;">
+    <div class="sign-topbar">
+      <span><span id="statusDot" class="status-dot"></span><span id="statusText">연결 중...</span></span>
+      <span id="tabletLabel"></span>
+    </div>
+    <canvas id="signCanvas"></canvas>
+    <div class="sign-actions">
+      <button class="btn-clear" id="clearBtn">지우기</button>
+      <button class="btn-save" id="saveBtn">서명 완료 저장</button>
+    </div>
+  </div>
+
+  <div id="toast" class="toast">저장되었습니다</div>
+
+  <script src="sign.js"></script>
+</body>
+</html>
