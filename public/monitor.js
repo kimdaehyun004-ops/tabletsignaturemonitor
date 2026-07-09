@@ -45,7 +45,7 @@
 
   let ws;
   let tabletCount = 10;
-  const cells = new Map(); // id -> { canvas, ctx, header, wrap, dot, savedBadge, savedTimer }
+  const cells = new Map(); // id -> { canvas, ctx, header, wrap, dot, savedBadge }
 
   function buildGrid() {
     grid.innerHTML = '';
@@ -79,7 +79,7 @@
       cell.appendChild(canvas);
       grid.appendChild(cell);
 
-      cells.set(id, { canvas, ctx, header, wrap: cell, dot, savedBadge, savedTimer: null, drawer: createSmoothDrawer(ctx), queue: [] });
+      cells.set(id, { canvas, ctx, header, wrap: cell, dot, savedBadge, drawer: createSmoothDrawer(ctx), queue: [] });
     }
     layoutGrid();
   }
@@ -203,6 +203,11 @@
     const c = cells.get(id);
     if (!c) return;
     c.queue.push(...points);
+    // 새 서명을 다시 쓰기 시작하면(=새 손님), 이전 저장 표시등은 꺼서
+    // "이번 서명은 아직 저장 전"이라는 걸 구분할 수 있게 한다.
+    if (points.some((p) => p.type === 'start')) {
+      c.savedBadge.classList.remove('show');
+    }
   }
 
   function applyClear(id) {
@@ -218,9 +223,8 @@
     c.wrap.classList.add('flash');
     setTimeout(() => c.wrap.classList.remove('flash'), 700);
 
+    // 다음 사람이 새로 서명을 시작하기 전까지 계속 켜져 있는 저장 표시등.
     c.savedBadge.classList.add('show');
-    clearTimeout(c.savedTimer);
-    c.savedTimer = setTimeout(() => c.savedBadge.classList.remove('show'), 3000);
   }
 
   function connect(password) {
