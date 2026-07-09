@@ -1,4 +1,37 @@
 (function () {
+  // 연속된 점 3개의 중점을 이어 2차 베지어 곡선으로 그리면
+  // 직선 이어그리기보다 훨씬 부드럽고 끊김 없는 필기감을 만들 수 있다.
+  function createSmoothDrawer(ctx) {
+    let p1 = null;
+    let p2 = null;
+    return {
+      reset(x, y) {
+        p1 = null;
+        p2 = { x, y };
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+      },
+      addPoint(x, y) {
+        const p3 = { x, y };
+        if (!p1) {
+          ctx.lineTo(p3.x, p3.y);
+          ctx.stroke();
+          p1 = p2;
+          p2 = p3;
+          return;
+        }
+        const mid1 = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
+        const mid2 = { x: (p2.x + p3.x) / 2, y: (p2.y + p3.y) / 2 };
+        ctx.beginPath();
+        ctx.moveTo(mid1.x, mid1.y);
+        ctx.quadraticCurveTo(p2.x, p2.y, mid2.x, mid2.y);
+        ctx.stroke();
+        p1 = p2;
+        p2 = p3;
+      },
+    };
+  }
+
   const params = new URLSearchParams(location.search);
   let tabletId = params.get('id') || localStorage.getItem('tabletId');
   let token = params.get('token') || localStorage.getItem('tabletToken');
@@ -136,31 +169,22 @@
       pendingPoints = [];
     }
 
-    function drawLocal(type, x, y) {
-      const rect = canvas.getBoundingClientRect();
-      const px = x * rect.width;
-      const py = y * rect.height;
-      if (type === 'start') {
-        ctx.beginPath();
-        ctx.moveTo(px, py);
-      } else if (type === 'point') {
-        ctx.lineTo(px, py);
-        ctx.stroke();
-      }
-    }
+    const localDrawer = createSmoothDrawer(ctx);
 
     canvas.addEventListener('pointerdown', (e) => {
       drawing = true;
       canvas.setPointerCapture(e.pointerId);
       const { x, y } = normPoint(e.clientX, e.clientY);
-      drawLocal('start', x, y);
+      const rect = canvas.getBoundingClientRect();
+      localDrawer.reset(x * rect.width, y * rect.height);
       queuePoint('start', x, y);
     });
 
     canvas.addEventListener('pointermove', (e) => {
       if (!drawing) return;
       const { x, y } = normPoint(e.clientX, e.clientY);
-      drawLocal('point', x, y);
+      const rect = canvas.getBoundingClientRect();
+      localDrawer.addPoint(x * rect.width, y * rect.height);
       queuePoint('point', x, y);
     });
 

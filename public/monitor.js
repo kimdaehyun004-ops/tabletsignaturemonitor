@@ -1,4 +1,37 @@
 (function () {
+  // 연속된 점 3개의 중점을 이어 2차 베지어 곡선으로 그리면
+  // 직선 이어그리기보다 훨씬 부드럽고 끊김 없는 필기감을 만들 수 있다.
+  function createSmoothDrawer(ctx) {
+    let p1 = null;
+    let p2 = null;
+    return {
+      reset(x, y) {
+        p1 = null;
+        p2 = { x, y };
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+      },
+      addPoint(x, y) {
+        const p3 = { x, y };
+        if (!p1) {
+          ctx.lineTo(p3.x, p3.y);
+          ctx.stroke();
+          p1 = p2;
+          p2 = p3;
+          return;
+        }
+        const mid1 = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
+        const mid2 = { x: (p2.x + p3.x) / 2, y: (p2.y + p3.y) / 2 };
+        ctx.beginPath();
+        ctx.moveTo(mid1.x, mid1.y);
+        ctx.quadraticCurveTo(p2.x, p2.y, mid2.x, mid2.y);
+        ctx.stroke();
+        p1 = p2;
+        p2 = p3;
+      },
+    };
+  }
+
   const loginEl = document.getElementById('login');
   const monitorEl = document.getElementById('monitorPage');
   const passwordInput = document.getElementById('passwordInput');
@@ -43,9 +76,30 @@
       cell.appendChild(canvas);
       grid.appendChild(cell);
 
-      cells.set(id, { canvas, ctx, wrap: cell, dot });
+      cells.set(id, { canvas, ctx, wrap: cell, dot, drawer: createSmoothDrawer(ctx), queue: [] });
     }
   }
+
+  // 인터넷을 통해 오는 그리기 데이터는 도착 간격이 고르지 않을 수 있다.
+  // 도착 즉시 그리는 대신 큐에 모았다가 매 프레임 일정한 속도로 그려주면
+  // 네트워크 지연/버스트로 인한 "뚝뚝 끊기는" 느낌이 크게 줄어든다.
+  // 밀린 양이 많으면(backlog) 더 빨리 그려서 지연이 계속 쌓이지 않도록 한다.
+  function tickQueues() {
+    for (const c of cells.values()) {
+      const backlog = c.queue.length;
+      if (backlog === 0) continue;
+      const drainCount = backlog > 30 ? backlog - 8 : Math.min(4, backlog);
+      for (let i = 0; i < drainCount; i++) {
+        const p = c.queue.shift();
+        const px = p.x * c.canvas.width;
+        const py = p.y * c.canvas.height;
+        if (p.type === 'start') c.drawer.reset(px, py);
+        else if (p.type === 'point') c.drawer.addPoint(px, py);
+      }
+    }
+    requestAnimationFrame(tickQueues);
+  }
+  requestAnimationFrame(tickQueues);
 
   function applyStatus(list) {
     list.forEach(({ id, online }) => {
@@ -59,23 +113,13 @@
   function applyStroke(id, points) {
     const c = cells.get(id);
     if (!c) return;
-    const { ctx, canvas } = c;
-    points.forEach((p) => {
-      const px = p.x * canvas.width;
-      const py = p.y * canvas.height;
-      if (p.type === 'start') {
-        ctx.beginPath();
-        ctx.moveTo(px, py);
-      } else if (p.type === 'point') {
-        ctx.lineTo(px, py);
-        ctx.stroke();
-      }
-    });
+    c.queue.push(...points);
   }
 
   function applyClear(id) {
     const c = cells.get(id);
     if (!c) return;
+    c.queue.length = 0;
     c.ctx.clearRect(0, 0, c.canvas.width, c.canvas.height);
   }
 
