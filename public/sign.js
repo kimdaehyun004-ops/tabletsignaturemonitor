@@ -133,12 +133,17 @@
       })
       .catch(() => {});
 
+    const signPageEl2 = document.getElementById('signPage');
     const canvas = document.getElementById('signCanvas');
     const ctx = canvas.getContext('2d');
     const statusDot = document.getElementById('statusDot');
     const statusText = document.getElementById('statusText');
+    const miniDot = document.getElementById('miniDot');
+    const miniText = document.getElementById('miniText');
+    const miniStatus = document.getElementById('miniStatus');
     const toast = document.getElementById('toast');
     const fullscreenBtn = document.getElementById('fullscreenBtn');
+    const hideUiBtn = document.getElementById('hideUiBtn');
 
     function updateFullscreenBtn() {
       fullscreenBtn.textContent = document.fullscreenElement ? '⛶ 전체화면 종료' : '⛶ 전체화면';
@@ -151,6 +156,29 @@
       }
     });
     document.addEventListener('fullscreenchange', updateFullscreenBtn);
+
+    // 화면 정리(숨김) 모드: 상단바·하단 버튼을 숨기고 서명 영역만 남긴다.
+    // 좌상단 미니 표시등을 더블 터치하면 다시 나타난다.
+    function setUiHidden(hidden) {
+      signPageEl2.classList.toggle('ui-hidden', hidden);
+      // 상단바/하단 버튼이 사라지거나 나타나면 캔버스 영역 크기가 달라지므로
+      // 다시 계산해 서명을 새 크기에 맞춰 복원한다 (resizeCanvas가 redraw 호출).
+      requestAnimationFrame(resizeCanvas);
+    }
+    hideUiBtn.addEventListener('click', () => setUiHidden(true));
+
+    // 더블 터치(빠르게 두 번) 감지 → UI 복원
+    let lastTapTime = 0;
+    function handleMiniTap() {
+      const now = Date.now();
+      if (now - lastTapTime < 400) {
+        lastTapTime = 0;
+        setUiHidden(false);
+      } else {
+        lastTapTime = now;
+      }
+    }
+    miniStatus.addEventListener('click', handleMiniTap);
 
     let ws;
     let reconnectDelay = 1000;
@@ -224,6 +252,9 @@
     function setStatus(online, text) {
       statusDot.classList.toggle('online', online);
       statusText.textContent = text;
+      // 숨김 모드의 좌상단 미니 표시등도 함께 갱신한다.
+      miniDot.classList.toggle('online', online);
+      miniText.textContent = text;
     }
 
     function connect() {

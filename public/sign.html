@@ -24,12 +24,19 @@
     <div class="sign-topbar">
       <span><span id="statusDot" class="status-dot"></span><span id="statusText">연결 중...</span></span>
       <span id="tabletLabel"></span>
-      <button id="fullscreenBtn" class="fullscreen-btn" title="전체화면">⛶ 전체화면</button>
+      <span class="topbar-btns">
+        <button id="hideUiBtn" class="fullscreen-btn" title="화면 정리">▢ 화면 정리</button>
+        <button id="fullscreenBtn" class="fullscreen-btn" title="전체화면">⛶ 전체화면</button>
+      </span>
     </div>
     <div class="canvas-wrap" id="canvasWrap">
       <img id="signBg" class="sign-bg" alt="" style="display:none;" />
       <canvas id="signCanvas"></canvas>
       <div class="sign-guide-line" id="signGuideLine"></div>
+      <!-- 화면 정리(숨김) 모드에서 좌상단에만 남는 미니 연결 표시등. 더블 터치하면 UI 복원 -->
+      <div id="miniStatus" class="mini-status" title="더블 터치하면 메뉴가 다시 나옵니다">
+        <span id="miniDot" class="status-dot"></span><span id="miniText">연결됨</span>
+      </div>
     </div>
     <div class="sign-actions">
       <button class="btn-clear" id="clearBtn">지우기</button>
