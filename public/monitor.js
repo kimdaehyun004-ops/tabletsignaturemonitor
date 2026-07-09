@@ -42,15 +42,15 @@
   const grid = document.getElementById('grid');
   const connStatus = document.getElementById('connStatus');
 
-  // 태블릿의 실제 화면 비율이 서버로부터 보고되기 전까지 쓰는 기본값.
-  // 태블릿이 연결되면 실제 비율로 자동 갱신되어, 모니터링 화면이 원본과
-  // 똑같은 비율로 서명을 그리게 된다 (늘어나거나 찌그러지지 않음).
-  let ASPECT_RATIO = 4 / 3;
+  // 그리드 칸 배치(열/행 개수, 칸 크기)를 계산할 때 쓰는 고정 기준 비율.
+  // 실제로 접속하는 태블릿이 무엇이든, 몇 대가 붙든 상관없이 항상 이 값으로
+  // 배치를 계산하므로 화면 구성 자체는 절대 바뀌지 않는다.
+  const GRID_REFERENCE_ASPECT = 4 / 3;
   const GRID_GAP = 10; // style.css .grid의 gap 값과 반드시 일치시켜야 한다.
 
   let ws;
   let tabletCount = 10;
-  const cells = new Map(); // id -> { canvas, ctx, header, wrap, dot, savedBadge }
+  const cells = new Map(); // id -> { canvas, ctx, header, content, wrap, dot, savedBadge, aspect }
 
   function buildGrid() {
     grid.innerHTML = '';
@@ -73,6 +73,9 @@
       header.appendChild(savedBadge);
       header.appendChild(dot);
 
+      const content = document.createElement('div');
+      content.className = 'cell-content';
+
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
       ctx.lineJoin = 'round';
@@ -80,25 +83,26 @@
       ctx.lineWidth = 3;
       ctx.strokeStyle = '#111';
 
+      content.appendChild(canvas);
       cell.appendChild(header);
-      cell.appendChild(canvas);
+      cell.appendChild(content);
       grid.appendChild(cell);
 
-      cells.set(id, { canvas, ctx, header, wrap: cell, dot, savedBadge, drawer: createSmoothDrawer(ctx), queue: [] });
+      cells.set(id, { canvas, ctx, header, content, wrap: cell, dot, savedBadge, aspect: null, drawer: createSmoothDrawer(ctx), queue: [] });
     }
     layoutGrid();
   }
 
-  // 태블릿 개수(N)와 가로형 비율을 그대로 유지하면서, 스크롤 없이 화면 안에
-  // 전부 들어가도록 열/행 개수와 각 칸의 정확한 픽셀 크기를 계산한다.
-  // (화상회의 프로그램의 참가자 그리드 배치와 같은 방식)
+  // 태블릿 개수(N)와 고정 기준 비율로, 스크롤 없이 화면 안에 전부 들어가도록
+  // 열/행 개수와 각 칸의 정확한 픽셀 크기를 계산한다. 이 값들은 실제 접속된
+  // 태블릿 화면 비율과 무관하게 항상 동일하게 나온다 (화상회의 그리드 배치 방식).
   function computeLayout(containerW, containerH, count, headerHeight) {
     let best = null;
     for (let cols = 1; cols <= count; cols++) {
       const rows = Math.ceil(count / cols);
 
       const cellWFromWidth = (containerW - GRID_GAP * (cols - 1)) / cols;
-      const cellHFromWidth = cellWFromWidth / ASPECT_RATIO + headerHeight;
+      const cellHFromWidth = cellWFromWidth / GRID_REFERENCE_ASPECT + headerHeight;
 
       const cellHFromHeight = (containerH - GRID_GAP * (rows - 1)) / rows;
       const canvasHFromHeight = cellHFromHeight - headerHeight;
@@ -111,7 +115,7 @@
       } else {
         if (canvasHFromHeight <= 0) continue; // 이 열 구성으로는 헤더 높이도 안 나옴
         cellH = cellHFromHeight;
-        cellW = canvasHFromHeight * ASPECT_RATIO;
+        cellW = canvasHFromHeight * GRID_REFERENCE_ASPECT;
       }
       if (cellW <= 0 || cellH <= 0) continue;
 
@@ -148,26 +152,41 @@
     grid.style.gridTemplateColumns = `repeat(${layout.cols}, ${layout.cellW}px)`;
     grid.style.gridTemplateRows = `repeat(${layout.rows}, ${layout.cellH}px)`;
 
-    resizeAllCanvases();
+    for (const c of cells.values()) fitCanvas(c);
   }
 
-  // 캔버스 해상도를 실제로 화면에 표시되는 크기에 맞춰서 흐려지지 않게 한다.
-  function resizeAllCanvases() {
-    const ratio = window.devicePixelRatio || 1;
-    for (const c of cells.values()) {
-      const rect = c.canvas.getBoundingClientRect();
-      const w = Math.max(1, Math.round(rect.width * ratio));
-      const h = Math.max(1, Math.round(rect.height * ratio));
-      if (c.canvas.width !== w || c.canvas.height !== h) {
-        c.canvas.width = w;
-        c.canvas.height = h;
-        c.ctx.lineJoin = 'round';
-        c.ctx.lineCap = 'round';
-        c.ctx.lineWidth = 3;
-        c.ctx.strokeStyle = '#111';
-      }
+  // 칸(그리드 셀) 자체의 크기는 고정된 채로, 그 안에서 캔버스만 태블릿의
+  // 실제 화면 비율에 맞춰(찌그러짐 없이) 최대한 크게, 가운데 정렬로 표시한다.
+  // 비율이 다르면 위아래 또는 좌우에 약간의 여백이 생길 수 있지만, 칸 배치
+  // 자체는 절대 바뀌지 않는다.
+  function fitCanvas(c) {
+    const maxW = c.content.clientWidth;
+    const maxH = c.content.clientHeight;
+    if (maxW <= 0 || maxH <= 0) return;
+    const aspect = c.aspect || GRID_REFERENCE_ASPECT;
+
+    let cssW = maxW;
+    let cssH = cssW / aspect;
+    if (cssH > maxH) {
+      cssH = maxH;
+      cssW = cssH * aspect;
     }
+
+    const ratio = window.devicePixelRatio || 1;
+    const w = Math.max(1, Math.round(cssW * ratio));
+    const h = Math.max(1, Math.round(cssH * ratio));
+    if (c.canvas.width === w && c.canvas.height === h) return;
+
+    c.canvas.style.width = `${Math.round(cssW)}px`;
+    c.canvas.style.height = `${Math.round(cssH)}px`;
+    c.canvas.width = w;
+    c.canvas.height = h;
+    c.ctx.lineJoin = 'round';
+    c.ctx.lineCap = 'round';
+    c.ctx.lineWidth = 3;
+    c.ctx.strokeStyle = '#111';
   }
+
   let resizeDebounce;
   window.addEventListener('resize', () => {
     clearTimeout(resizeDebounce);
@@ -197,20 +216,18 @@
   requestAnimationFrame(tickQueues);
 
   function applyStatus(list) {
-    let reportedAspect = null;
     list.forEach(({ id, online, aspect }) => {
       const c = cells.get(id);
       if (!c) return;
       c.wrap.classList.toggle('offline', !online);
       c.dot.classList.toggle('online', online);
-      if (online && aspect && reportedAspect == null) reportedAspect = aspect;
+      // 이 칸의 캔버스만 실제 태블릿 비율에 맞게 다시 맞춘다.
+      // 그리드 전체 배치(칸 개수·크기)는 절대 바뀌지 않는다.
+      if (online && aspect && Math.abs(aspect - (c.aspect || 0)) > 0.01) {
+        c.aspect = aspect;
+        fitCanvas(c);
+      }
     });
-    // 태블릿들이 실제로 보고한 화면 비율로 그리드를 다시 계산해,
-    // 모니터링 화면의 서명이 태블릿 원본과 똑같은 비율로 보이게 한다.
-    if (reportedAspect && Math.abs(reportedAspect - ASPECT_RATIO) > 0.01) {
-      ASPECT_RATIO = reportedAspect;
-      layoutGrid();
-    }
   }
 
   function applyStroke(id, points) {
