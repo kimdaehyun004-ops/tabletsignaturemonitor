@@ -39,8 +39,10 @@
   const grid = document.getElementById('grid');
   const connStatus = document.getElementById('connStatus');
 
-  // 태블릿은 항상 가로형으로 사용하므로, 화면 찌그러짐 없이 이 비율을 그대로 유지한다.
-  const ASPECT_RATIO = 4 / 3;
+  // 태블릿의 실제 화면 비율이 서버로부터 보고되기 전까지 쓰는 기본값.
+  // 태블릿이 연결되면 실제 비율로 자동 갱신되어, 모니터링 화면이 원본과
+  // 똑같은 비율로 서명을 그리게 된다 (늘어나거나 찌그러지지 않음).
+  let ASPECT_RATIO = 4 / 3;
   const GRID_GAP = 10; // style.css .grid의 gap 값과 반드시 일치시켜야 한다.
 
   let ws;
@@ -191,12 +193,20 @@
   requestAnimationFrame(tickQueues);
 
   function applyStatus(list) {
-    list.forEach(({ id, online }) => {
+    let reportedAspect = null;
+    list.forEach(({ id, online, aspect }) => {
       const c = cells.get(id);
       if (!c) return;
       c.wrap.classList.toggle('offline', !online);
       c.dot.classList.toggle('online', online);
+      if (online && aspect && reportedAspect == null) reportedAspect = aspect;
     });
+    // 태블릿들이 실제로 보고한 화면 비율로 그리드를 다시 계산해,
+    // 모니터링 화면의 서명이 태블릿 원본과 똑같은 비율로 보이게 한다.
+    if (reportedAspect && Math.abs(reportedAspect - ASPECT_RATIO) > 0.01) {
+      ASPECT_RATIO = reportedAspect;
+      layoutGrid();
+    }
   }
 
   function applyStroke(id, points) {

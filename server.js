@@ -107,15 +107,23 @@ function timingSafeEqual(a, b) {
   return crypto.timingSafeEqual(bufA, bufB);
 }
 
-// tabletId -> { ws, name, connectedAt }
+// tabletId -> { ws, connectedAt, aspect }
 const tablets = new Map();
 // Set of monitor sockets
 const monitors = new Set();
 
+// 태블릿마다 실제 화면 비율이 다를 수 있어, 모니터링 화면이 그 비율을 그대로
+// 따라가야 서명이 늘어나거나 찌그러지지 않는다. 비정상적인 값은 무시한다.
+function sanitizeAspect(value) {
+  const n = parseFloat(value);
+  return Number.isFinite(n) && n > 0.2 && n < 5 ? n : null;
+}
+
 function tabletStatusList() {
   const list = [];
   for (let id = 1; id <= TABLET_COUNT; id++) {
-    list.push({ id, online: tablets.has(id) });
+    const t = tablets.get(id);
+    list.push({ id, online: !!t, aspect: t ? t.aspect : null });
   }
   return list;
 }
@@ -181,7 +189,7 @@ wss.on('connection', (ws) => {
         }
         ws.role = 'tablet';
         ws.tabletId = id;
-        tablets.set(id, { ws, connectedAt: Date.now() });
+        tablets.set(id, { ws, connectedAt: Date.now(), aspect: sanitizeAspect(msg.aspect) });
         ws.send(JSON.stringify({ type: 'auth_ok' }));
         broadcastStatus();
         return;
@@ -192,6 +200,15 @@ wss.on('connection', (ws) => {
     // 태블릿에서 온 드로잉/저장 이벤트만 처리
     if (ws.role !== 'tablet' || ws.tabletId == null) return;
     const id = ws.tabletId;
+
+    if (msg.type === 'aspect') {
+      const current = tablets.get(id);
+      if (current) {
+        current.aspect = sanitizeAspect(msg.aspect);
+        broadcastStatus();
+      }
+      return;
+    }
 
     if (msg.type === 'stroke') {
       // { type: 'stroke', points: [{type:'start'|'point'|'end', x, y}, ...] }

@@ -103,6 +103,19 @@
     });
     document.addEventListener('fullscreenchange', updateFullscreenBtn);
 
+    let ws;
+    let reconnectDelay = 1000;
+    let pendingPoints = [];
+    let flushScheduled = false;
+    let drawing = false;
+
+    // 태블릿마다 실제 화면 비율이 다를 수 있으므로, 모니터링 화면이 이 비율을
+    // 그대로 따라 그려야 서명이 늘어나거나 찌그러지지 않고 원본과 똑같이 보인다.
+    function currentAspect() {
+      const rect = canvas.getBoundingClientRect();
+      return rect.height > 0 ? rect.width / rect.height : 4 / 3;
+    }
+
     function resizeCanvas() {
       const rect = canvas.getBoundingClientRect();
       const ratio = window.devicePixelRatio || 1;
@@ -113,18 +126,15 @@
       ctx.lineCap = 'round';
       ctx.lineWidth = 3;
       ctx.strokeStyle = '#111';
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'aspect', aspect: currentAspect() }));
+      }
     }
     window.addEventListener('resize', resizeCanvas);
     // 일부 태블릿 브라우저는 회전 직후 resize 이벤트가 늦게 오거나 치수가
     // 안정되기 전에 와서, 화면 회전 후 살짝 지연을 두고 한번 더 재계산한다.
     window.addEventListener('orientationchange', () => setTimeout(resizeCanvas, 300));
     resizeCanvas();
-
-    let ws;
-    let reconnectDelay = 1000;
-    let pendingPoints = [];
-    let flushScheduled = false;
-    let drawing = false;
 
     function setStatus(online, text) {
       statusDot.classList.toggle('online', online);
@@ -136,7 +146,7 @@
       ws = new WebSocket(`${protocol}://${location.host}`);
 
       ws.addEventListener('open', () => {
-        ws.send(JSON.stringify({ type: 'hello', role: 'tablet', id: tabletId, token }));
+        ws.send(JSON.stringify({ type: 'hello', role: 'tablet', id: tabletId, token, aspect: currentAspect() }));
       });
 
       ws.addEventListener('message', (ev) => {
