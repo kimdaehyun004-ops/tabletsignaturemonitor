@@ -69,6 +69,7 @@
     localStorage.setItem('tabletToken', token);
     setupEl.style.display = 'none';
     signPageEl.style.display = 'flex';
+    document.documentElement.requestFullscreen().catch(() => {});
     init();
   });
 
@@ -88,6 +89,19 @@
     const statusDot = document.getElementById('statusDot');
     const statusText = document.getElementById('statusText');
     const toast = document.getElementById('toast');
+    const fullscreenBtn = document.getElementById('fullscreenBtn');
+
+    function updateFullscreenBtn() {
+      fullscreenBtn.textContent = document.fullscreenElement ? '⛶ 전체화면 종료' : '⛶ 전체화면';
+    }
+    fullscreenBtn.addEventListener('click', () => {
+      if (document.fullscreenElement) {
+        document.exitFullscreen();
+      } else {
+        document.documentElement.requestFullscreen().catch(() => {});
+      }
+    });
+    document.addEventListener('fullscreenchange', updateFullscreenBtn);
 
     function resizeCanvas() {
       const rect = canvas.getBoundingClientRect();
@@ -101,6 +115,9 @@
       ctx.strokeStyle = '#111';
     }
     window.addEventListener('resize', resizeCanvas);
+    // 일부 태블릿 브라우저는 회전 직후 resize 이벤트가 늦게 오거나 치수가
+    // 안정되기 전에 와서, 화면 회전 후 살짝 지연을 두고 한번 더 재계산한다.
+    window.addEventListener('orientationchange', () => setTimeout(resizeCanvas, 300));
     resizeCanvas();
 
     let ws;

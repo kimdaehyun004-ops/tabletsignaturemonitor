@@ -3,6 +3,10 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black" />
+<link rel="manifest" href="manifest.json" />
 <title>서명 - 태블릿</title>
 <link rel="stylesheet" href="style.css" />
 </head>
@@ -20,8 +24,12 @@
     <div class="sign-topbar">
       <span><span id="statusDot" class="status-dot"></span><span id="statusText">연결 중...</span></span>
       <span id="tabletLabel"></span>
+      <button id="fullscreenBtn" class="fullscreen-btn" title="전체화면">⛶ 전체화면</button>
     </div>
-    <canvas id="signCanvas"></canvas>
+    <div class="canvas-wrap">
+      <canvas id="signCanvas"></canvas>
+      <div class="sign-guide-line"></div>
+    </div>
     <div class="sign-actions">
       <button class="btn-clear" id="clearBtn">지우기</button>
       <button class="btn-save" id="saveBtn">서명 완료 저장</button>

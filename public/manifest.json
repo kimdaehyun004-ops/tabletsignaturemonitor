@@ -1,0 +1,10 @@
+{
+  "name": "태블릿 서명",
+  "short_name": "서명",
+  "start_url": "/sign.html",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#ffffff",
+  "theme_color": "#2563eb"
+}
