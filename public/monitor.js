@@ -1,18 +1,21 @@
 (function () {
   // 연속된 점 3개의 중점을 이어 2차 베지어 곡선으로 그리면
   // 직선 이어그리기보다 훨씬 부드럽고 끊김 없는 필기감을 만들 수 있다.
+  // width는 태블릿에서 계산해 전달한 값을 그대로 써서 원본과 굵기가 동일하게 한다.
   function createSmoothDrawer(ctx) {
     let p1 = null;
     let p2 = null;
     return {
-      reset(x, y) {
+      reset(x, y, width) {
         p1 = null;
         p2 = { x, y };
+        if (width) ctx.lineWidth = width;
         ctx.beginPath();
         ctx.moveTo(x, y);
       },
-      addPoint(x, y) {
+      addPoint(x, y, width) {
         const p3 = { x, y };
+        if (width) ctx.lineWidth = width;
         if (!p1) {
           ctx.lineTo(p3.x, p3.y);
           ctx.stroke();
@@ -184,8 +187,9 @@
         const p = c.queue.shift();
         const px = p.x * c.canvas.width;
         const py = p.y * c.canvas.height;
-        if (p.type === 'start') c.drawer.reset(px, py);
-        else if (p.type === 'point') c.drawer.addPoint(px, py);
+        const width = p.w ? p.w * c.canvas.width : undefined;
+        if (p.type === 'start') c.drawer.reset(px, py, width);
+        else if (p.type === 'point') c.drawer.addPoint(px, py, width);
       }
     }
     requestAnimationFrame(tickQueues);

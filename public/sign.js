@@ -1,18 +1,21 @@
 (function () {
   // 연속된 점 3개의 중점을 이어 2차 베지어 곡선으로 그리면
   // 직선 이어그리기보다 훨씬 부드럽고 끊김 없는 필기감을 만들 수 있다.
+  // width를 매 구간마다 바꿔주면 실제 펜처럼 굵기가 자연스럽게 변한다.
   function createSmoothDrawer(ctx) {
     let p1 = null;
     let p2 = null;
     return {
-      reset(x, y) {
+      reset(x, y, width) {
         p1 = null;
         p2 = { x, y };
+        if (width) ctx.lineWidth = width;
         ctx.beginPath();
         ctx.moveTo(x, y);
       },
-      addPoint(x, y) {
+      addPoint(x, y, width) {
         const p3 = { x, y };
+        if (width) ctx.lineWidth = width;
         if (!p1) {
           ctx.lineTo(p3.x, p3.y);
           ctx.stroke();
@@ -28,6 +31,41 @@
         ctx.stroke();
         p1 = p2;
         p2 = p3;
+      },
+    };
+  }
+
+  // 손가락(또는 펜)이 빠르게 움직일수록 얇게, 천천히 움직일수록 굵게 그려서
+  // 실제 펜으로 쓰는 것 같은 강약이 느껴지도록 한다.
+  const MIN_WIDTH = 1.6;
+  const MAX_WIDTH = 3.4;
+  function createWidthTracker() {
+    let lastX = null;
+    let lastY = null;
+    let lastT = 0;
+    let smoothed = MAX_WIDTH;
+    return {
+      reset() {
+        lastX = null;
+        lastY = null;
+        smoothed = MAX_WIDTH;
+      },
+      next(x, y, t) {
+        if (lastX == null) {
+          lastX = x;
+          lastY = y;
+          lastT = t;
+          return smoothed;
+        }
+        const dt = Math.max(1, t - lastT);
+        const dist = Math.hypot(x - lastX, y - lastY);
+        const speed = dist / dt; // px / ms
+        const target = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, MAX_WIDTH - speed * 6));
+        smoothed = smoothed * 0.7 + target * 0.3;
+        lastX = x;
+        lastY = y;
+        lastT = t;
+        return smoothed;
       },
     };
   }
@@ -179,8 +217,8 @@
       };
     }
 
-    function queuePoint(type, x, y) {
-      pendingPoints.push({ type, x, y });
+    function queuePoint(type, x, y, w) {
+      pendingPoints.push({ type, x, y, w });
       if (!flushScheduled) {
         flushScheduled = true;
         requestAnimationFrame(flushPoints);
@@ -197,27 +235,42 @@
     }
 
     const localDrawer = createSmoothDrawer(ctx);
+    const widthTracker = createWidthTracker();
+
+    // 서명 중 손바닥이나 두 번째 손가락이 화면에 닿아도 흔들리지 않도록,
+    // 먼저 닿은 손가락(pointerId) 하나만 인식하고 나머지는 무시한다.
+    let activePointerId = null;
 
     canvas.addEventListener('pointerdown', (e) => {
+      if (activePointerId !== null) return; // 이미 다른 손가락으로 그리는 중
+      activePointerId = e.pointerId;
       drawing = true;
-      canvas.setPointerCapture(e.pointerId);
+      try {
+        canvas.setPointerCapture(e.pointerId);
+      } catch {
+        // 일부 브라우저 환경에서 드물게 실패할 수 있으나, 그리기 자체는 계속 진행한다.
+      }
       const { x, y } = normPoint(e.clientX, e.clientY);
       const rect = canvas.getBoundingClientRect();
-      localDrawer.reset(x * rect.width, y * rect.height);
-      queuePoint('start', x, y);
+      widthTracker.reset();
+      const width = widthTracker.next(x * rect.width, y * rect.height, e.timeStamp);
+      localDrawer.reset(x * rect.width, y * rect.height, width);
+      queuePoint('start', x, y, width / rect.width);
     });
 
     canvas.addEventListener('pointermove', (e) => {
-      if (!drawing) return;
+      if (!drawing || e.pointerId !== activePointerId) return;
       const { x, y } = normPoint(e.clientX, e.clientY);
       const rect = canvas.getBoundingClientRect();
-      localDrawer.addPoint(x * rect.width, y * rect.height);
-      queuePoint('point', x, y);
+      const width = widthTracker.next(x * rect.width, y * rect.height, e.timeStamp);
+      localDrawer.addPoint(x * rect.width, y * rect.height, width);
+      queuePoint('point', x, y, width / rect.width);
     });
 
     function endStroke(e) {
-      if (!drawing) return;
+      if (!drawing || e.pointerId !== activePointerId) return;
       drawing = false;
+      activePointerId = null;
       const { x, y } = normPoint(e.clientX, e.clientY);
       queuePoint('end', x, y);
     }
