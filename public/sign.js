@@ -35,37 +35,15 @@
     };
   }
 
-  // 손가락(또는 펜)이 빠르게 움직일수록 얇게, 천천히 움직일수록 굵게 그려서
-  // 실제 펜으로 쓰는 것 같은 강약이 느껴지도록 한다.
-  const MIN_WIDTH = 1.6;
-  const MAX_WIDTH = 3.4;
+  // 예전에는 속도에 따라 굵기를 바꿨지만, 획을 잘게 나눠 그리는 구조에서
+  // 조각마다 굵기가 달라지면 경계가 어긋나 선이 갈라져(깨져) 보였다.
+  // 그래서 굵기를 일정하게 유지해 깔끔한 펜 선으로 그린다.
+  const PEN_WIDTH = 2.8;
   function createWidthTracker() {
-    let lastX = null;
-    let lastY = null;
-    let lastT = 0;
-    let smoothed = MAX_WIDTH;
     return {
-      reset() {
-        lastX = null;
-        lastY = null;
-        smoothed = MAX_WIDTH;
-      },
-      next(x, y, t) {
-        if (lastX == null) {
-          lastX = x;
-          lastY = y;
-          lastT = t;
-          return smoothed;
-        }
-        const dt = Math.max(1, t - lastT);
-        const dist = Math.hypot(x - lastX, y - lastY);
-        const speed = dist / dt; // px / ms
-        const target = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, MAX_WIDTH - speed * 6));
-        smoothed = smoothed * 0.7 + target * 0.3;
-        lastX = x;
-        lastY = y;
-        lastT = t;
-        return smoothed;
+      reset() {},
+      next() {
+        return PEN_WIDTH;
       },
     };
   }
