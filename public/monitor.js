@@ -350,7 +350,21 @@
     ws.addEventListener('error', () => ws.close());
   }
 
+  // 모니터링 화면도 자동으로 꺼지지 않게 유지한다 (Screen Wake Lock).
+  let wakeLock = null;
+  async function requestWakeLock() {
+    try {
+      if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen');
+    } catch {
+      // 미지원이거나 화면을 벗어난 경우 조용히 넘어간다.
+    }
+  }
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') requestWakeLock();
+  });
+
   function start(password) {
+    requestWakeLock();
     fetch('/api/config')
       .then((r) => r.json())
       .then((cfg) => {

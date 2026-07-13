@@ -48,6 +48,22 @@
     };
   }
 
+  // 화면이 자동으로 꺼지지 않게 유지한다 (Screen Wake Lock).
+  // 화면을 잠깐 벗어나면 잠금이 풀리므로, 다시 보일 때마다 재요청한다.
+  let wakeLock = null;
+  async function requestWakeLock() {
+    try {
+      if ('wakeLock' in navigator) {
+        wakeLock = await navigator.wakeLock.request('screen');
+      }
+    } catch {
+      // 사용자가 화면을 벗어났거나 미지원 환경이면 조용히 넘어간다.
+    }
+  }
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') requestWakeLock();
+  });
+
   const params = new URLSearchParams(location.search);
   let tabletId = params.get('id') || localStorage.getItem('tabletId');
   let token = params.get('token') || localStorage.getItem('tabletToken');
@@ -86,6 +102,7 @@
     setupEl.style.display = 'none';
     signPageEl.style.display = 'flex';
     document.documentElement.requestFullscreen().catch(() => {});
+    requestWakeLock();
     init();
   });
 
@@ -95,6 +112,7 @@
   }
 
   signPageEl.style.display = 'flex';
+  requestWakeLock();
   init();
 
   function init() {
