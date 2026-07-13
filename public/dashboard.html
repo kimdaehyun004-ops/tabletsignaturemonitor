@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>버전 통합 접속 현황</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="login" class="login-box">
+    <h2>통합 관리 접속</h2>
+    <input id="passwordInput" type="password" placeholder="관리자 비밀번호" />
+    <button id="loginBtn">입장</button>
+    <div class="login-error" id="loginError"></div>
+  </div>
+
+  <div id="dashPage" class="admin-page" style="display:none;">
+    <div class="admin-header">
+      <h1>버전 통합 접속 현황</h1>
+      <button id="editBtn">주소 편집</button>
+      <button id="refreshBtn">새로고침</button>
+    </div>
+
+    <div id="editBox" class="edit-box" style="display:none;">
+      <p class="bg-hint">모니터링할 버전 주소를 한 줄에 하나씩 입력하세요. (예: https://tabletsignaturemonitor-v2.onrender.com)</p>
+      <textarea id="urlsInput" rows="4" placeholder="https://tabletsignaturemonitor.onrender.com&#10;https://tabletsignaturemonitor-v2.onrender.com&#10;https://tabletsignaturemonitor-v3.onrender.com"></textarea>
+      <div>
+        <button id="saveUrlsBtn">저장</button>
+      </div>
+    </div>
+
+    <p class="bg-hint" id="pwNote">※ 모든 버전에서 이 페이지가 동작하려면 세 버전의 관리자 비밀번호(ADMIN_PASSWORD)가 서로 같아야 합니다.</p>
+    <div id="cards" class="dash-grid"></div>
+  </div>
+
+  <script src="dashboard.js"></script>
+</body>
+</html>

@@ -403,3 +403,70 @@ html, body {
 .bg-controls button.danger { background: #1a1f24; color: #f87171; border-color: #5a2a2a; }
 .bg-status { font-size: 13px; color: #9fe08a; min-height: 18px; }
 .sig-title { font-size: 16px; margin: 0 0 12px; }
+
+/* ---- 통합 대시보드 ---- */
+.edit-box {
+  background: #1a1f24;
+  border: 1px solid #2a2f36;
+  border-radius: 10px;
+  padding: 14px;
+  margin-bottom: 16px;
+}
+.edit-box textarea {
+  width: 100%;
+  box-sizing: border-box;
+  background: #0f1216;
+  color: #eee;
+  border: 1px solid #333;
+  border-radius: 6px;
+  padding: 10px;
+  font-size: 14px;
+  margin-bottom: 10px;
+  resize: vertical;
+}
+.edit-box button {
+  padding: 8px 14px;
+  border-radius: 6px;
+  border: 1px solid #3a4250;
+  background: #2563eb;
+  color: #fff;
+  cursor: pointer;
+}
+.dash-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+}
+.dash-card {
+  background: #1a1f24;
+  border: 1px solid #2a2f36;
+  border-radius: 12px;
+  padding: 16px;
+}
+.dash-card.err { border-color: #5a2a2a; }
+.dash-card-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+.dash-name { font-size: 17px; font-weight: 700; }
+.dash-count { font-size: 14px; color: #888; white-space: nowrap; }
+.dash-count.some { color: #34d399; font-weight: 700; }
+.dash-url { font-size: 11px; color: #667; word-break: break-all; margin-bottom: 12px; }
+.dash-dots { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+.dash-dot {
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  background: #2a2f36;
+  color: #7a8290;
+}
+.dash-dot.on { background: #16a34a; color: #fff; }
+.dash-links { display: flex; gap: 12px; }
+.dash-links a { color: #9fb3ff; text-decoration: none; font-size: 13px; }

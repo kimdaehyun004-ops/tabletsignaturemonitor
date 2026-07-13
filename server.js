@@ -64,6 +64,20 @@ app.get('/api/config', (req, res) => {
   res.json({ tabletCount: TABLET_COUNT, instanceName: INSTANCE_NAME });
 });
 
+// 통합 대시보드(dashboard.html)에서 여러 버전의 접속 현황을 한 화면에 모으기 위한 API.
+// 다른 버전(다른 도메인)에서도 조회할 수 있도록 CORS를 허용하고, 비밀번호로 보호한다.
+app.get('/api/status', (req, res) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  if (!checkAdminPw(req)) return res.status(401).json({ error: 'unauthorized' });
+  const onlineIds = [...tablets.keys()].sort((a, b) => a - b);
+  res.json({
+    instanceName: INSTANCE_NAME,
+    tabletCount: TABLET_COUNT,
+    online: onlineIds.length,
+    onlineIds,
+  });
+});
+
 // /links.html에서 태블릿/모니터 QR코드를 만들 때 사용.
 // 브라우저가 실제로 접속한 주소(로컬 IP든, 클라우드 도메인이든)를 그대로 base로 사용해
 // 로컬 네트워크 배포와 클라우드 배포 모두에서 올바른 QR코드가 만들어지도록 한다.
