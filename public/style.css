@@ -382,35 +382,74 @@ html, body {
 }
 .bg-section h2 { font-size: 16px; margin: 0 0 6px; }
 .bg-hint { color: #9aa4b2; font-size: 13px; margin: 0 0 14px; }
-.bg-row { display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-start; }
-.bg-preview {
-  width: 280px;
-  height: 180px;
-  border: 1px dashed #3a4250;
-  border-radius: 8px;
+.bg-status { font-size: 12px; color: #9fe08a; min-height: 16px; }
+
+/* "모든 태블릿에 같게" 상단 줄 */
+.bg-allrow {
   display: flex;
+  gap: 10px;
   align-items: center;
-  justify-content: center;
-  background: #fff;
-  color: #999;
-  font-size: 13px;
-  overflow: hidden;
-  flex: 0 0 auto;
+  flex-wrap: wrap;
+  padding: 12px;
+  background: #12161b;
+  border: 1px solid #2a2f36;
+  border-radius: 8px;
+  margin-bottom: 16px;
 }
-.bg-preview img { max-width: 100%; max-height: 100%; object-fit: contain; }
-.bg-controls { display: flex; flex-direction: column; gap: 10px; }
-.bg-controls input[type='file'] { color: #ccc; font-size: 13px; }
-.bg-controls button {
-  padding: 9px 14px;
+.bg-allrow input[type='file'] { color: #ccc; font-size: 13px; }
+.bg-allrow button {
+  padding: 8px 12px;
   border-radius: 6px;
   border: 1px solid #3a4250;
   background: #2563eb;
   color: #fff;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 13px;
 }
-.bg-controls button.danger { background: #1a1f24; color: #f87171; border-color: #5a2a2a; }
-.bg-status { font-size: 13px; color: #9fe08a; min-height: 18px; }
+.bg-allrow button.danger { background: #1a1f24; color: #f87171; border-color: #5a2a2a; }
+
+/* 태블릿별 배경 슬롯 그리드 */
+.bg-slots {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 14px;
+}
+.bg-slot {
+  background: #12161b;
+  border: 1px solid #2a2f36;
+  border-radius: 8px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.bg-slot-title { font-weight: 700; font-size: 13px; }
+.bg-slot-preview {
+  height: 120px;
+  border: 1px dashed #3a4250;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  color: #999;
+  font-size: 12px;
+  overflow: hidden;
+}
+.bg-slot-preview img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.bg-slot input[type='file'] { color: #ccc; font-size: 12px; width: 100%; }
+.bg-slot-btns { display: flex; gap: 8px; }
+.bg-slot-btns button {
+  flex: 1;
+  padding: 7px 0;
+  border-radius: 6px;
+  border: 1px solid #3a4250;
+  background: #2563eb;
+  color: #fff;
+  cursor: pointer;
+  font-size: 13px;
+}
+.bg-slot-btns button.danger { background: #1a1f24; color: #f87171; border-color: #5a2a2a; }
 .sig-title { font-size: 16px; margin: 0 0 12px; }
 
 /* ---- 통합 대시보드 ---- */

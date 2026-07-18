@@ -189,7 +189,7 @@
     // version 값을 붙여 이미지가 바뀌면 브라우저 캐시를 우회해 새로 불러온다.
     function applyBackground(hasBackground, version) {
       if (hasBackground) {
-        signBg.src = `/api/background?v=${version || 0}`;
+        signBg.src = `/api/background?id=${encodeURIComponent(tabletId)}&v=${version || 0}`;
         signBg.style.display = 'block';
         canvasWrap.classList.add('has-bg');
       } else {

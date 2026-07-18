@@ -24,19 +24,16 @@
     </div>
     <div class="bg-section">
       <h2>태블릿 배경 이미지</h2>
-      <p class="bg-hint">이미지를 올리면 이 버전의 모든 태블릿 서명 화면에 배경으로 즉시 적용됩니다. (서명은 배경 위에 그려지며, 저장되는 파일은 서명 획만 포함됩니다.)</p>
-      <div class="bg-row">
-        <div class="bg-preview" id="bgPreview">
-          <span id="bgPreviewEmpty">현재 배경 없음</span>
-          <img id="bgPreviewImg" alt="" style="display:none;" />
-        </div>
-        <div class="bg-controls">
-          <input type="file" id="bgFileInput" accept="image/png,image/jpeg,image/webp,image/gif" />
-          <button id="bgUploadBtn">업로드 / 교체</button>
-          <button id="bgRemoveBtn" class="danger">배경 삭제</button>
-          <div class="bg-status" id="bgStatus"></div>
-        </div>
+      <p class="bg-hint">태블릿마다 다른 배경(브랜딩 프레임)을 올릴 수 있습니다. 각 칸에서 이미지를 올리면 그 태블릿에만 즉시 적용됩니다. (서명은 배경 위에 그려지고, 저장 파일에는 서명 획만 포함됩니다.)</p>
+
+      <div class="bg-allrow">
+        <input type="file" id="bgAllFile" accept="image/png,image/jpeg,image/webp,image/gif" />
+        <button id="bgAllApply">모든 태블릿에 같게 적용</button>
+        <button id="bgAllClear" class="danger">전체 배경 삭제</button>
+        <span class="bg-status" id="bgAllStatus"></span>
       </div>
+
+      <div id="bgSlots" class="bg-slots"></div>
     </div>
 
     <h2 class="sig-title">저장된 서명</h2>

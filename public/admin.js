@@ -20,30 +20,12 @@
     })
     .catch(() => {});
 
-  // ---------- 배경 이미지 관리 ----------
-  const bgFileInput = document.getElementById('bgFileInput');
-  const bgUploadBtn = document.getElementById('bgUploadBtn');
-  const bgRemoveBtn = document.getElementById('bgRemoveBtn');
-  const bgStatus = document.getElementById('bgStatus');
-  const bgPreviewImg = document.getElementById('bgPreviewImg');
-  const bgPreviewEmpty = document.getElementById('bgPreviewEmpty');
-
-  function refreshBackgroundPreview() {
-    fetch('/api/background-info')
-      .then((r) => r.json())
-      .then(({ hasBackground, version }) => {
-        if (hasBackground) {
-          bgPreviewImg.src = `/api/background?v=${version}`;
-          bgPreviewImg.style.display = 'block';
-          bgPreviewEmpty.style.display = 'none';
-        } else {
-          bgPreviewImg.style.display = 'none';
-          bgPreviewImg.removeAttribute('src');
-          bgPreviewEmpty.style.display = 'inline';
-        }
-      })
-      .catch(() => {});
-  }
+  // ---------- 배경 이미지 관리 (태블릿별) ----------
+  const bgSlots = document.getElementById('bgSlots');
+  const bgAllFile = document.getElementById('bgAllFile');
+  const bgAllApply = document.getElementById('bgAllApply');
+  const bgAllClear = document.getElementById('bgAllClear');
+  const bgAllStatus = document.getElementById('bgAllStatus');
 
   function readFileAsDataUrl(file) {
     return new Promise((resolve, reject) => {
@@ -54,49 +36,135 @@
     });
   }
 
-  bgUploadBtn.addEventListener('click', async () => {
-    const file = bgFileInput.files && bgFileInput.files[0];
+  async function uploadBackground(idParam, file, statusEl) {
     if (!file) {
-      bgStatus.textContent = '이미지 파일을 먼저 선택하세요.';
-      return;
+      statusEl.textContent = '이미지를 먼저 선택하세요.';
+      return false;
     }
     if (file.size > 12 * 1024 * 1024) {
-      bgStatus.textContent = '이미지가 너무 큽니다 (최대 12MB).';
-      return;
+      statusEl.textContent = '이미지가 너무 큽니다 (최대 12MB).';
+      return false;
     }
-    bgStatus.textContent = '업로드 중...';
+    statusEl.textContent = '업로드 중...';
     try {
       const dataUrl = await readFileAsDataUrl(file);
-      const res = await fetch(`/api/background?pw=${encodeURIComponent(pw)}`, {
+      const res = await fetch(`/api/background?id=${encodeURIComponent(idParam)}&pw=${encodeURIComponent(pw)}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ dataUrl }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        bgStatus.textContent = err.error || '업로드에 실패했습니다.';
-        return;
+        statusEl.textContent = err.error || '업로드 실패';
+        return false;
       }
-      bgStatus.textContent = '적용되었습니다. 모든 태블릿에 반영됩니다.';
-      bgFileInput.value = '';
-      refreshBackgroundPreview();
+      statusEl.textContent = '적용됨';
+      return true;
     } catch {
-      bgStatus.textContent = '업로드 중 오류가 발생했습니다.';
+      statusEl.textContent = '오류 발생';
+      return false;
+    }
+  }
+
+  async function deleteBackground(idParam, statusEl) {
+    statusEl.textContent = '삭제 중...';
+    try {
+      const res = await fetch(`/api/background?id=${encodeURIComponent(idParam)}&pw=${encodeURIComponent(pw)}`, { method: 'DELETE' });
+      if (!res.ok) {
+        statusEl.textContent = '삭제 실패';
+        return false;
+      }
+      statusEl.textContent = '삭제됨';
+      return true;
+    } catch {
+      statusEl.textContent = '오류 발생';
+      return false;
+    }
+  }
+
+  // 태블릿별 배경 슬롯을 그린다.
+  function buildBgSlots(list) {
+    bgSlots.innerHTML = '';
+    list.forEach(({ id, hasBackground, version }) => {
+      const slot = document.createElement('div');
+      slot.className = 'bg-slot';
+
+      const title = document.createElement('div');
+      title.className = 'bg-slot-title';
+      title.textContent = `태블릿 ${id}`;
+
+      const preview = document.createElement('div');
+      preview.className = 'bg-slot-preview';
+      if (hasBackground) {
+        const img = document.createElement('img');
+        img.src = `/api/background?id=${id}&v=${version}`;
+        preview.appendChild(img);
+      } else {
+        const em = document.createElement('span');
+        em.textContent = '배경 없음';
+        preview.appendChild(em);
+      }
+
+      const file = document.createElement('input');
+      file.type = 'file';
+      file.accept = 'image/png,image/jpeg,image/webp,image/gif';
+
+      const btnRow = document.createElement('div');
+      btnRow.className = 'bg-slot-btns';
+      const applyBtn = document.createElement('button');
+      applyBtn.textContent = '적용';
+      const delBtn = document.createElement('button');
+      delBtn.className = 'danger';
+      delBtn.textContent = '삭제';
+
+      const status = document.createElement('span');
+      status.className = 'bg-status';
+
+      applyBtn.addEventListener('click', async () => {
+        const ok = await uploadBackground(id, file.files && file.files[0], status);
+        if (ok) {
+          file.value = '';
+          refreshBgSlots();
+        }
+      });
+      delBtn.addEventListener('click', async () => {
+        const ok = await deleteBackground(id, status);
+        if (ok) refreshBgSlots();
+      });
+
+      btnRow.appendChild(applyBtn);
+      btnRow.appendChild(delBtn);
+      slot.appendChild(title);
+      slot.appendChild(preview);
+      slot.appendChild(file);
+      slot.appendChild(btnRow);
+      slot.appendChild(status);
+      bgSlots.appendChild(slot);
+    });
+  }
+
+  function refreshBgSlots() {
+    fetch(`/api/backgrounds-info?pw=${encodeURIComponent(pw)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data) buildBgSlots(data.backgrounds);
+      })
+      .catch(() => {});
+  }
+
+  bgAllApply.addEventListener('click', async () => {
+    const ok = await uploadBackground('all', bgAllFile.files && bgAllFile.files[0], bgAllStatus);
+    if (ok) {
+      bgAllStatus.textContent = '모든 태블릿에 적용됨';
+      bgAllFile.value = '';
+      refreshBgSlots();
     }
   });
-
-  bgRemoveBtn.addEventListener('click', async () => {
-    bgStatus.textContent = '삭제 중...';
-    try {
-      const res = await fetch(`/api/background?pw=${encodeURIComponent(pw)}`, { method: 'DELETE' });
-      if (!res.ok) {
-        bgStatus.textContent = '삭제에 실패했습니다.';
-        return;
-      }
-      bgStatus.textContent = '배경을 삭제했습니다.';
-      refreshBackgroundPreview();
-    } catch {
-      bgStatus.textContent = '삭제 중 오류가 발생했습니다.';
+  bgAllClear.addEventListener('click', async () => {
+    const ok = await deleteBackground('all', bgAllStatus);
+    if (ok) {
+      bgAllStatus.textContent = '전체 배경 삭제됨';
+      refreshBgSlots();
     }
   });
 
@@ -148,7 +216,7 @@
         adminEl.style.display = 'block';
         sessionStorage.setItem('adminPassword', pw);
         render(items);
-        refreshBackgroundPreview();
+        refreshBgSlots();
       })
       .catch(() => {
         loginError.textContent = '비밀번호가 올바르지 않습니다.';

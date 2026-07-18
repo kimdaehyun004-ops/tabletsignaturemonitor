@@ -23,23 +23,38 @@ if (!ADMIN_PASSWORD || !TABLET_TOKEN) {
 const DATA_DIR = path.join(__dirname, 'data', 'signatures');
 fs.mkdirSync(DATA_DIR, { recursive: true });
 
-// 태블릿 서명 화면에 깔리는 배경 이미지(브랜딩 프레임). 인스턴스당 1장만 유지한다.
-const BG_FILE = path.join(__dirname, 'data', 'background.bin');
-const BG_META_FILE = path.join(__dirname, 'data', 'background.json');
-let backgroundBuffer = null;
-let backgroundMime = null;
-let backgroundVersion = 0;
+// 태블릿 서명 화면에 깔리는 배경 이미지(브랜딩 프레임). 태블릿마다 서로 다른
+// 배경을 둘 수 있도록 태블릿 번호별로 저장한다.
+const BG_DIR = path.join(__dirname, 'data', 'backgrounds');
+fs.mkdirSync(BG_DIR, { recursive: true });
+const backgrounds = new Map(); // id -> { buffer, mime, version }
 
-// 서버 재시작 후에도(디스크가 남아있다면) 배경 이미지를 복원한다.
-try {
-  if (fs.existsSync(BG_FILE) && fs.existsSync(BG_META_FILE)) {
-    backgroundBuffer = fs.readFileSync(BG_FILE);
-    const meta = JSON.parse(fs.readFileSync(BG_META_FILE, 'utf8'));
-    backgroundMime = meta.mime || 'image/png';
-    backgroundVersion = meta.version || 1;
+function bgBinPath(id) {
+  return path.join(BG_DIR, `bg-${id}.bin`);
+}
+function bgMetaPath(id) {
+  return path.join(BG_DIR, `bg-${id}.json`);
+}
+
+// 서버 재시작 후에도(디스크가 남아있다면) 각 태블릿 배경을 복원한다.
+for (let id = 1; id <= 200; id++) {
+  try {
+    if (fs.existsSync(bgBinPath(id)) && fs.existsSync(bgMetaPath(id))) {
+      const buffer = fs.readFileSync(bgBinPath(id));
+      const meta = JSON.parse(fs.readFileSync(bgMetaPath(id), 'utf8'));
+      backgrounds.set(id, { buffer, mime: meta.mime || 'image/png', version: meta.version || 1 });
+    }
+  } catch {
+    // 개별 파일 손상은 무시하고 계속.
   }
-} catch {
-  backgroundBuffer = null;
+}
+
+function bgVersion(id) {
+  const b = backgrounds.get(id);
+  return b ? b.version : 0;
+}
+function hasBg(id) {
+  return backgrounds.has(id);
 }
 
 function getLanIp() {
@@ -125,21 +140,61 @@ app.get('/api/signature-file/:filename', (req, res) => {
   res.sendFile(filePath);
 });
 
-// 현재 배경 이미지. 태블릿이 표시해야 하므로 비밀번호 없이 접근 가능하다.
-// version 쿼리는 브라우저 캐시를 우회하기 위한 용도이며 값 자체는 사용하지 않는다.
+function parseBgId(req) {
+  const id = parseInt(req.query.id, 10);
+  return Number.isInteger(id) && id >= 1 && id <= TABLET_COUNT ? id : null;
+}
+
+// 특정 태블릿의 배경 이미지. 태블릿이 표시해야 하므로 비밀번호 없이 접근 가능하다.
 app.get('/api/background', (req, res) => {
-  if (!backgroundBuffer) return res.status(404).end();
-  res.set('Content-Type', backgroundMime || 'image/png');
+  const id = parseBgId(req);
+  const b = id ? backgrounds.get(id) : null;
+  if (!b) return res.status(404).end();
+  res.set('Content-Type', b.mime || 'image/png');
   res.set('Cache-Control', 'no-cache');
-  res.send(backgroundBuffer);
+  res.send(b.buffer);
 });
 
-// 배경 이미지 정보(존재 여부/버전). 태블릿·관리자 화면이 상태 파악에 사용한다.
+// 특정 태블릿 배경 정보(존재 여부/버전).
 app.get('/api/background-info', (req, res) => {
-  res.json({ hasBackground: !!backgroundBuffer, version: backgroundVersion });
+  const id = parseBgId(req);
+  res.json({ hasBackground: id ? hasBg(id) : false, version: id ? bgVersion(id) : 0 });
 });
 
-// 배경 이미지 업로드(교체). 관리자 비밀번호 필요.
+// 모든 태블릿의 배경 정보를 한번에 (관리자 화면에서 슬롯을 그릴 때 사용). 비밀번호 필요.
+app.get('/api/backgrounds-info', (req, res) => {
+  if (!checkAdminPw(req)) return res.status(401).json({ error: 'unauthorized' });
+  const list = [];
+  for (let id = 1; id <= TABLET_COUNT; id++) {
+    list.push({ id, hasBackground: hasBg(id), version: bgVersion(id) });
+  }
+  res.json({ tabletCount: TABLET_COUNT, backgrounds: list });
+});
+
+// 배경을 특정 태블릿에 반영하는 공통 처리. tablet 하나에 저장하고 그 태블릿에 알린다.
+function setBackgroundForId(id, buffer, mime) {
+  const version = bgVersion(id) + 1;
+  backgrounds.set(id, { buffer, mime, version });
+  try {
+    fs.writeFileSync(bgBinPath(id), buffer);
+    fs.writeFileSync(bgMetaPath(id), JSON.stringify({ mime, version }));
+  } catch {
+    // 디스크 저장 실패해도 메모리에는 남아있으므로 계속 서비스한다.
+  }
+  notifyTabletBackground(id);
+}
+function clearBackgroundForId(id) {
+  backgrounds.delete(id);
+  try {
+    if (fs.existsSync(bgBinPath(id))) fs.unlinkSync(bgBinPath(id));
+    if (fs.existsSync(bgMetaPath(id))) fs.unlinkSync(bgMetaPath(id));
+  } catch {
+    // 무시
+  }
+  notifyTabletBackground(id);
+}
+
+// 배경 업로드/교체. id=숫자면 그 태블릿, id=all이면 모든 태블릿에 같은 이미지를 적용. 비밀번호 필요.
 app.post('/api/background', (req, res) => {
   if (!checkAdminPw(req)) return res.status(401).json({ error: 'unauthorized' });
   const dataUrl = String((req.body && req.body.dataUrl) || '');
@@ -147,34 +202,29 @@ app.post('/api/background', (req, res) => {
   if (!match) return res.status(400).json({ error: 'png/jpeg/webp/gif 이미지만 업로드할 수 있습니다.' });
   const buffer = Buffer.from(match[2], 'base64');
   if (buffer.length > 12 * 1024 * 1024) return res.status(413).json({ error: '이미지가 너무 큽니다(최대 12MB).' });
+  const mime = match[1] === 'image/jpg' ? 'image/jpeg' : match[1];
 
-  backgroundBuffer = buffer;
-  backgroundMime = match[1] === 'image/jpg' ? 'image/jpeg' : match[1];
-  backgroundVersion += 1;
-  try {
-    fs.writeFileSync(BG_FILE, buffer);
-    fs.writeFileSync(BG_META_FILE, JSON.stringify({ mime: backgroundMime, version: backgroundVersion }));
-  } catch {
-    // 디스크 저장에 실패해도 메모리에는 남아있으므로 계속 서비스한다.
+  if (req.query.id === 'all') {
+    for (let id = 1; id <= TABLET_COUNT; id++) setBackgroundForId(id, buffer, mime);
+    return res.json({ ok: true, applied: 'all' });
   }
-  broadcastToTablets({ type: 'background', hasBackground: true, version: backgroundVersion });
-  res.json({ ok: true, version: backgroundVersion });
+  const id = parseBgId(req);
+  if (!id) return res.status(400).json({ error: '잘못된 태블릿 번호입니다.' });
+  setBackgroundForId(id, buffer, mime);
+  res.json({ ok: true, id, version: bgVersion(id) });
 });
 
-// 배경 이미지 삭제. 관리자 비밀번호 필요.
+// 배경 삭제. id=숫자 또는 id=all. 비밀번호 필요.
 app.delete('/api/background', (req, res) => {
   if (!checkAdminPw(req)) return res.status(401).json({ error: 'unauthorized' });
-  backgroundBuffer = null;
-  backgroundMime = null;
-  backgroundVersion += 1;
-  try {
-    if (fs.existsSync(BG_FILE)) fs.unlinkSync(BG_FILE);
-    if (fs.existsSync(BG_META_FILE)) fs.unlinkSync(BG_META_FILE);
-  } catch {
-    // 무시
+  if (req.query.id === 'all') {
+    for (let id = 1; id <= TABLET_COUNT; id++) clearBackgroundForId(id);
+    return res.json({ ok: true, applied: 'all' });
   }
-  broadcastToTablets({ type: 'background', hasBackground: false, version: backgroundVersion });
-  res.json({ ok: true, version: backgroundVersion });
+  const id = parseBgId(req);
+  if (!id) return res.status(400).json({ error: '잘못된 태블릿 번호입니다.' });
+  clearBackgroundForId(id);
+  res.json({ ok: true, id });
 });
 
 const server = app.listen(PORT, () => {
@@ -230,6 +280,14 @@ function broadcastToTablets(payload) {
   const data = JSON.stringify(payload);
   for (const t of tablets.values()) {
     if (t.ws.readyState === t.ws.OPEN) t.ws.send(data);
+  }
+}
+
+// 특정 태블릿에게 배경이 바뀌었음을 알린다 (해당 태블릿만 다시 불러오도록).
+function notifyTabletBackground(id) {
+  const t = tablets.get(id);
+  if (t && t.ws.readyState === t.ws.OPEN) {
+    t.ws.send(JSON.stringify({ type: 'background', hasBackground: hasBg(id), version: bgVersion(id) }));
   }
 }
 
@@ -289,8 +347,8 @@ wss.on('connection', (ws) => {
         ws.tabletId = id;
         tablets.set(id, { ws, connectedAt: Date.now(), aspect: sanitizeAspect(msg.aspect) });
         ws.send(JSON.stringify({ type: 'auth_ok' }));
-        // 접속 직후 현재 배경 이미지 상태를 알려줘 바로 표시하게 한다.
-        ws.send(JSON.stringify({ type: 'background', hasBackground: !!backgroundBuffer, version: backgroundVersion }));
+        // 접속 직후 이 태블릿의 배경 이미지 상태를 알려줘 바로 표시하게 한다.
+        ws.send(JSON.stringify({ type: 'background', hasBackground: hasBg(id), version: bgVersion(id) }));
         broadcastStatus();
         return;
       }
