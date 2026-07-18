@@ -47,6 +47,20 @@
   const qrItems = new Map(); // id -> { item, inner, built }
   let lastAnyOffline = null;
 
+  // 화면 캡처를 위한 표시 설정 (브라우저에 저장되어 유지된다).
+  let showLabels = localStorage.getItem('monShowLabels') === '1'; // 기본: 글씨 숨김
+  let hideOffline = localStorage.getItem('monHideOffline') === '1'; // 기본: 미접속도 표시
+  let order = []; // 화면에 배치할 태블릿 순서 (드래그로 변경)
+  try {
+    const saved = JSON.parse(localStorage.getItem('monOrder') || 'null');
+    if (Array.isArray(saved)) order = saved;
+  } catch {}
+  const onlineSet = new Set();
+
+  function saveOrder() {
+    localStorage.setItem('monOrder', JSON.stringify(order));
+  }
+
   // 그리드 칸 배치(열/행 개수, 칸 크기)를 계산할 때 쓰는 고정 기준 비율.
   // 실제로 접속하는 태블릿이 무엇이든, 몇 대가 붙든 상관없이 항상 이 값으로
   // 배치를 계산하므로 화면 구성 자체는 절대 바뀌지 않는다.
@@ -90,11 +104,70 @@
       cell.appendChild(label);
       grid.appendChild(cell);
 
+      // 마우스로 드래그해 위치(순서)를 바꿀 수 있게 한다.
+      cell.draggable = true;
+      cell.dataset.id = id;
+      cell.addEventListener('dragstart', (e) => {
+        e.dataTransfer.setData('text/plain', String(id));
+        e.dataTransfer.effectAllowed = 'move';
+      });
+      cell.addEventListener('dragover', (e) => e.preventDefault());
+      cell.addEventListener('drop', (e) => {
+        e.preventDefault();
+        const fromId = parseInt(e.dataTransfer.getData('text/plain'), 10);
+        const toId = id;
+        swapOrder(fromId, toId);
+      });
+
       cells.set(id, { id, canvas, ctx, content: cell, wrap: cell, savedBadge, aspect: null, drawer: createSmoothDrawer(ctx), queue: [], history: [] });
     }
+    // 저장된 순서에 빠진/이상한 값이 있으면 기본 순서로 정리한다.
+    const valid = order.filter((n) => n >= 1 && n <= tabletCount);
+    for (let id = 1; id <= tabletCount; id++) if (!valid.includes(id)) valid.push(id);
+    order = valid;
+    applyOrder();
+    applyLabelVisibility();
     buildLegend();
     buildQrStrip();
     layoutGrid();
+  }
+
+  // order 배열 순서대로 각 칸의 CSS order를 지정해 화면 배치 순서를 바꾼다.
+  function applyOrder() {
+    order.forEach((id, idx) => {
+      const c = cells.get(id);
+      if (c) c.wrap.style.order = String(idx);
+    });
+  }
+
+  function swapOrder(fromId, toId) {
+    if (!fromId || !toId || fromId === toId) return;
+    const i = order.indexOf(fromId);
+    const j = order.indexOf(toId);
+    if (i < 0 || j < 0) return;
+    order[i] = toId;
+    order[j] = fromId;
+    applyOrder();
+    saveOrder();
+  }
+
+  function applyLabelVisibility() {
+    grid.classList.toggle('hide-labels', !showLabels);
+  }
+
+  // 미접속 숨기기 설정에 따라 각 칸을 보이거나 감춘다.
+  function applyVisibility() {
+    for (const c of cells.values()) {
+      const visible = !hideOffline || onlineSet.has(c.id);
+      c.wrap.style.display = visible ? '' : 'none';
+    }
+  }
+
+  function visibleCount() {
+    if (!hideOffline) return tabletCount;
+    let n = 0;
+    for (let id = 1; id <= tabletCount; id++) if (onlineSet.has(id)) n++;
+    return n || 1;
   }
 
   // 상단 연결 상태 한눈 표시: "태블릿 1 ● 2 ● ..." (초록=접속, 회색=미접속)
@@ -196,7 +269,7 @@
     const containerH = grid.clientHeight - paddingY;
     if (containerW <= 0 || containerH <= 0) return;
 
-    const layout = computeLayout(containerW, containerH, tabletCount, headerHeight);
+    const layout = computeLayout(containerW, containerH, visibleCount(), headerHeight);
     if (!layout) return;
 
     grid.style.gridTemplateColumns = `repeat(${layout.cols}, ${layout.cellW}px)`;
@@ -286,9 +359,13 @@
 
   function applyStatus(list) {
     let anyOffline = false;
+    let onlineChanged = false;
     list.forEach(({ id, online, aspect }) => {
       const c = cells.get(id);
       if (!c) return;
+      const was = onlineSet.has(id);
+      if (online && !was) { onlineSet.add(id); onlineChanged = true; }
+      if (!online && was) { onlineSet.delete(id); onlineChanged = true; }
       c.wrap.classList.toggle('offline', !online);
       // 상단 연결 표시등 갱신
       const ld = legendDots.get(id);
@@ -306,8 +383,10 @@
         fitCanvas(c);
       }
     });
-    // 미접속 태블릿 유무가 바뀌면 하단 QR 스트립을 켜고/끄고, 보드 크기를 다시 계산한다.
-    if (anyOffline !== lastAnyOffline) {
+    // 미접속 숨기기가 켜져 있고 접속 상태가 바뀌면 보이는 칸을 갱신하고 다시 배치한다.
+    if (onlineChanged && hideOffline) applyVisibility();
+    // 미접속 유무나 접속 상태가 바뀌면 하단 QR 스트립을 켜고/끄고, 보드를 다시 계산한다.
+    if (anyOffline !== lastAnyOffline || onlineChanged) {
       lastAnyOffline = anyOffline;
       qrStripEl.style.display = anyOffline ? 'flex' : 'none';
       requestAnimationFrame(layoutGrid);
@@ -428,6 +507,23 @@
   });
   passwordInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') document.getElementById('loginBtn').click();
+  });
+
+  // 표시 설정 토글 (글씨 표시 / 미접속 숨기기). 상태는 브라우저에 저장된다.
+  const toggleLabels = document.getElementById('toggleLabels');
+  const toggleHideOffline = document.getElementById('toggleHideOffline');
+  toggleLabels.checked = showLabels;
+  toggleHideOffline.checked = hideOffline;
+  toggleLabels.addEventListener('change', () => {
+    showLabels = toggleLabels.checked;
+    localStorage.setItem('monShowLabels', showLabels ? '1' : '0');
+    applyLabelVisibility();
+  });
+  toggleHideOffline.addEventListener('change', () => {
+    hideOffline = toggleHideOffline.checked;
+    localStorage.setItem('monHideOffline', hideOffline ? '1' : '0');
+    applyVisibility();
+    requestAnimationFrame(layoutGrid);
   });
 
   const savedPw = sessionStorage.getItem('monitorPassword');
