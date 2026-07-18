@@ -50,6 +50,7 @@
   // 화면 캡처를 위한 표시 설정 (브라우저에 저장되어 유지된다).
   let showLabels = localStorage.getItem('monShowLabels') === '1'; // 기본: 글씨 숨김
   let hideOffline = localStorage.getItem('monHideOffline') === '1'; // 기본: 미접속도 표시
+  let forcedCols = parseInt(localStorage.getItem('monCols') || '0', 10) || 0; // 0=자동
   let order = []; // 화면에 배치할 태블릿 순서 (드래그로 변경)
   try {
     const saved = JSON.parse(localStorage.getItem('monOrder') || 'null');
@@ -256,6 +257,24 @@
     return best;
   }
 
+  // 가로 칸 수(cols)를 사용자가 직접 지정한 경우: 그 열 개수를 그대로 쓰되,
+  // 스크롤이 생기지 않도록 칸 크기를 화면에 맞게 줄인다.
+  function computeFixedCols(containerW, containerH, count, cols, headerHeight) {
+    cols = Math.max(1, cols);
+    const rows = Math.ceil(count / cols);
+    let cellW = (containerW - GRID_GAP * (cols - 1)) / cols;
+    let cellH = cellW / GRID_REFERENCE_ASPECT + headerHeight;
+    const maxCellH = (containerH - GRID_GAP * (rows - 1)) / rows;
+    if (cellH > maxCellH) {
+      cellH = maxCellH;
+      cellW = (cellH - headerHeight) * GRID_REFERENCE_ASPECT;
+    }
+    cellW = Math.floor(cellW) - 1;
+    cellH = Math.floor(cellH) - 1;
+    if (cellW <= 0 || cellH <= 0) return null;
+    return { cols, rows, cellW, cellH };
+  }
+
   function layoutGrid() {
     if (cells.size === 0) return;
     // 칸에 별도 헤더 바가 없으므로(라벨은 겹쳐 놓는 오버레이) 헤더 높이는 0.
@@ -269,7 +288,10 @@
     const containerH = grid.clientHeight - paddingY;
     if (containerW <= 0 || containerH <= 0) return;
 
-    const layout = computeLayout(containerW, containerH, visibleCount(), headerHeight);
+    const count = visibleCount();
+    const layout = forcedCols > 0
+      ? computeFixedCols(containerW, containerH, count, Math.min(forcedCols, count), headerHeight)
+      : computeLayout(containerW, containerH, count, headerHeight);
     if (!layout) return;
 
     grid.style.gridTemplateColumns = `repeat(${layout.cols}, ${layout.cellW}px)`;
@@ -486,6 +508,7 @@
           document.getElementById('instanceBadge').textContent = cfg.instanceName;
           document.getElementById('instanceBadge').style.display = 'inline-block';
         }
+        populateColsSelect();
         buildGrid();
         connect(password);
       });
@@ -523,6 +546,24 @@
     hideOffline = toggleHideOffline.checked;
     localStorage.setItem('monHideOffline', hideOffline ? '1' : '0');
     applyVisibility();
+    requestAnimationFrame(layoutGrid);
+  });
+
+  // 가로 칸 수 선택 (자동 / 1~N)
+  const colsSelect = document.getElementById('colsSelect');
+  function populateColsSelect() {
+    colsSelect.innerHTML = '<option value="0">자동</option>';
+    for (let n = 1; n <= tabletCount; n++) {
+      const opt = document.createElement('option');
+      opt.value = String(n);
+      opt.textContent = `${n}칸`;
+      colsSelect.appendChild(opt);
+    }
+    colsSelect.value = String(forcedCols);
+  }
+  colsSelect.addEventListener('change', () => {
+    forcedCols = parseInt(colsSelect.value, 10) || 0;
+    localStorage.setItem('monCols', String(forcedCols));
     requestAnimationFrame(layoutGrid);
   });
 
