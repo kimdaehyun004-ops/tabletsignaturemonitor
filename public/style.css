@@ -176,34 +176,38 @@ html, body {
 }
 .setup-error { color: #c0392b; font-size: 14px; min-height: 18px; }
 
-/* ---------- PC 모니터링 화면 ---------- */
+/* ---------- PC 모니터링 화면 (흰 보드 모드) ---------- */
 .monitor-page {
   height: 100%;
   display: flex;
   flex-direction: column;
+  background: #fff;
+  color: #222;
 }
 .monitor-header {
-  padding: 14px 20px;
-  background: #1a1f24;
-  border-bottom: 1px solid #2a2f36;
+  padding: 10px 16px;
+  background: #f3f4f6;
+  border-bottom: 1px solid #e5e7eb;
   display: flex;
   align-items: center;
   gap: 12px;
+  flex: 0 0 auto;
 }
 .monitor-header h1 {
-  font-size: 18px;
+  font-size: 16px;
   margin: 0;
-  flex: 1;
+  color: #111;
+  white-space: nowrap;
 }
 .admin-link {
-  color: #9fb3ff;
+  color: #2563eb;
   font-size: 13px;
   text-decoration: none;
-  border: 1px solid #3a4250;
+  border: 1px solid #cbd5e1;
   border-radius: 6px;
-  padding: 6px 10px;
+  padding: 5px 9px;
 }
-.admin-link:hover { background: #20262c; }
+.admin-link:hover { background: #e5e7eb; }
 .instance-badge {
   background: #f59e0b;
   color: #1a1200;
@@ -212,7 +216,27 @@ html, body {
   padding: 4px 10px;
   border-radius: 999px;
 }
-.grid {
+#connStatus { font-size: 12px; color: #6b7280; white-space: nowrap; }
+
+/* 상단 연결 상태 한눈 표시 */
+.status-legend {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  align-items: center;
+}
+.legend-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #444;
+}
+.legend-chip .status-dot { margin-right: 0; }
+
+/* 흰 서명 보드 */
+.board {
   flex: 1;
   display: grid;
   justify-content: center;
@@ -220,83 +244,68 @@ html, body {
   gap: 10px;
   padding: 10px;
   overflow: hidden;
+  background: #fff;
 }
 .cell {
-  background: #1a1f24;
-  border: 1px solid #2a2f36;
-  border-radius: 10px;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-/* 접속 안 된 칸은 헤더 점(빨강)과 연결 QR코드로 구분되므로 전체를 흐리게
-   하지 않는다 (흐리게 하면 QR 스캔이 어려워짐). 캔버스 영역만 살짝 어둡게. */
-.cell.offline .cell-content canvas { opacity: 0.4; }
-.cell-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 10px;
-  font-size: 13px;
-  background: #20262c;
-  flex: 0 0 auto;
-}
-.cell-header .tablet-name { flex: 1; }
-.saved-badge {
-  font-size: 11px;
-  color: #3b82f6;
-  opacity: 0;
-  transform: translateY(-2px);
-  transition: opacity 0.2s, transform 0.2s;
-  white-space: nowrap;
-}
-.saved-badge.show { opacity: 1; transform: translateY(0); }
-.cell-content {
   position: relative;
-  flex: 1;
-  min-height: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #10141a;
+  background: #fff;
+  overflow: hidden;
 }
-.cell-content canvas {
+.cell canvas {
   background: #fff;
   display: block;
 }
-/* 접속 안 된 칸에 뜨는 연결 QR코드 오버레이 */
-.cell-qr {
+/* 어느 태블릿인지 알려주는 좌상단 작은 라벨 (흰 바탕 위) */
+.cell-label {
   position: absolute;
-  inset: 0;
+  top: 4px;
+  left: 6px;
+  font-size: 11px;
+  color: #9aa1ab;
+  pointer-events: none;
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+.saved-badge {
+  color: #2563eb;
+  font-weight: 700;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.saved-badge.show { opacity: 1; }
+.cell.flash { box-shadow: 0 0 0 3px #16a34a inset; transition: box-shadow 0.3s; }
+
+/* 하단 QR 스트립 (미접속 태블릿 연결용) */
+.qr-strip {
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  padding: 10px;
+  background: #f3f4f6;
+  border-top: 1px solid #e5e7eb;
+  max-height: 30vh;
+  overflow: auto;
+}
+.qr-item {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 8px;
-  background: #ffffff;
+  gap: 3px;
 }
-.cell-qr-inner {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  max-width: 78%;
-  max-height: 78%;
-}
-.cell-qr-inner canvas,
-.cell-qr-inner img {
-  width: 100%;
-  height: auto;
-  max-width: 100%;
-  max-height: 100%;
+.qr-item-inner canvas,
+.qr-item-inner img {
+  width: 100px;
+  height: 100px;
   image-rendering: pixelated;
+  display: block;
 }
-.cell-qr-label {
-  font-size: 12px;
-  color: #333;
-  text-align: center;
-}
-.cell.flash { box-shadow: 0 0 0 3px #16a34a inset; transition: box-shadow 0.3s; }
+.qr-item-label { font-size: 11px; color: #444; }
 
 .login-box {
   max-width: 340px;

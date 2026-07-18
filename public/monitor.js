@@ -41,6 +41,11 @@
   const loginError = document.getElementById('loginError');
   const grid = document.getElementById('grid');
   const connStatus = document.getElementById('connStatus');
+  const legendEl = document.getElementById('statusLegend');
+  const qrStripEl = document.getElementById('qrStrip');
+  const legendDots = new Map(); // id -> dot element
+  const qrItems = new Map(); // id -> { item, inner, built }
+  let lastAnyOffline = null;
 
   // 그리드 칸 배치(열/행 개수, 칸 크기)를 계산할 때 쓰는 고정 기준 비율.
   // 실제로 접속하는 태블릿이 무엇이든, 몇 대가 붙든 상관없이 항상 이 값으로
@@ -59,25 +64,9 @@
     grid.innerHTML = '';
     cells.clear();
     for (let id = 1; id <= tabletCount; id++) {
+      // 테두리 없는 흰 서명 영역. 각 칸은 그대로 흰 바탕이라 양옆 여백을 크롭해 쓸 수 있다.
       const cell = document.createElement('div');
-      cell.className = 'cell offline';
-
-      const header = document.createElement('div');
-      header.className = 'cell-header';
-      const label = document.createElement('span');
-      label.className = 'tablet-name';
-      label.textContent = `태블릿 ${id}`;
-      const savedBadge = document.createElement('span');
-      savedBadge.className = 'saved-badge';
-      savedBadge.textContent = '● 저장됨';
-      const dot = document.createElement('span');
-      dot.className = 'status-dot';
-      header.appendChild(label);
-      header.appendChild(savedBadge);
-      header.appendChild(dot);
-
-      const content = document.createElement('div');
-      content.className = 'cell-content';
+      cell.className = 'cell';
 
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
@@ -86,26 +75,72 @@
       ctx.lineWidth = 3;
       ctx.strokeStyle = '#111';
 
-      // 접속 전 안내: "스캔해서 연결" QR코드가 뜨는 오버레이.
-      const qrHolder = document.createElement('div');
-      qrHolder.className = 'cell-qr';
-      const qrInner = document.createElement('div');
-      qrInner.className = 'cell-qr-inner';
-      const qrLabel = document.createElement('div');
-      qrLabel.className = 'cell-qr-label';
-      qrLabel.textContent = `태블릿 ${id} · 스캔해서 연결`;
-      qrHolder.appendChild(qrInner);
-      qrHolder.appendChild(qrLabel);
+      // 어느 태블릿인지 알려주는 좌상단 작은 라벨 (흰 바탕 위, 최소한만).
+      const label = document.createElement('div');
+      label.className = 'cell-label';
+      const nameSpan = document.createElement('span');
+      nameSpan.textContent = `태블릿 ${id}`;
+      const savedBadge = document.createElement('span');
+      savedBadge.className = 'saved-badge';
+      savedBadge.textContent = '· 저장됨';
+      label.appendChild(nameSpan);
+      label.appendChild(savedBadge);
 
-      content.appendChild(canvas);
-      content.appendChild(qrHolder);
-      cell.appendChild(header);
-      cell.appendChild(content);
+      cell.appendChild(canvas);
+      cell.appendChild(label);
       grid.appendChild(cell);
 
-      cells.set(id, { id, canvas, ctx, header, content, wrap: cell, dot, savedBadge, qrHolder, qrInner, qrBuilt: false, aspect: null, drawer: createSmoothDrawer(ctx), queue: [], history: [] });
+      cells.set(id, { id, canvas, ctx, content: cell, wrap: cell, savedBadge, aspect: null, drawer: createSmoothDrawer(ctx), queue: [], history: [] });
     }
+    buildLegend();
+    buildQrStrip();
     layoutGrid();
+  }
+
+  // 상단 연결 상태 한눈 표시: "태블릿 1 ● 2 ● ..." (초록=접속, 회색=미접속)
+  function buildLegend() {
+    legendEl.innerHTML = '';
+    legendDots.clear();
+    for (let id = 1; id <= tabletCount; id++) {
+      const chip = document.createElement('span');
+      chip.className = 'legend-chip';
+      const dot = document.createElement('span');
+      dot.className = 'status-dot';
+      const t = document.createElement('span');
+      t.textContent = id;
+      chip.appendChild(dot);
+      chip.appendChild(t);
+      legendEl.appendChild(chip);
+      legendDots.set(id, dot);
+    }
+  }
+
+  // 하단 QR 스트립: 아직 접속 안 된 태블릿의 연결 QR을 모아서 보여준다.
+  function buildQrStrip() {
+    qrStripEl.innerHTML = '';
+    qrItems.clear();
+    for (let id = 1; id <= tabletCount; id++) {
+      const item = document.createElement('div');
+      item.className = 'qr-item';
+      item.style.display = 'none';
+      const inner = document.createElement('div');
+      inner.className = 'qr-item-inner';
+      const lbl = document.createElement('div');
+      lbl.className = 'qr-item-label';
+      lbl.textContent = `태블릿 ${id}`;
+      item.appendChild(inner);
+      item.appendChild(lbl);
+      qrStripEl.appendChild(item);
+      qrItems.set(id, { item, inner, built: false });
+    }
+  }
+
+  function buildQrItem(id) {
+    const q = qrItems.get(id);
+    if (!q || q.built || !hostBase || typeof QRCode === 'undefined') return;
+    const signUrl = `${hostBase}/sign.html?id=${id}&token=${encodeURIComponent(tabletToken)}`;
+    new QRCode(q.inner, { text: signUrl, width: 130, height: 130, correctLevel: QRCode.CorrectLevel.M });
+    q.built = true;
   }
 
   // 태블릿 개수(N)와 고정 기준 비율로, 스크롤 없이 화면 안에 전부 들어가도록
@@ -150,8 +185,8 @@
 
   function layoutGrid() {
     if (cells.size === 0) return;
-    const firstCell = cells.values().next().value;
-    const headerHeight = firstCell.header.getBoundingClientRect().height || 34;
+    // 칸에 별도 헤더 바가 없으므로(라벨은 겹쳐 놓는 오버레이) 헤더 높이는 0.
+    const headerHeight = 0;
     // clientWidth/Height는 padding을 포함하므로, 실제로 트랙에 쓸 수 있는
     // 안쪽 공간을 구하려면 padding만큼 빼야 스크롤 없이 정확히 들어맞는다.
     const gridStyle = window.getComputedStyle(grid);
@@ -249,36 +284,34 @@
   }
   requestAnimationFrame(tickQueues);
 
-  // 접속 안 된 칸에 그 태블릿 전용 연결 QR코드를 만든다. (한 번만 생성)
-  function buildCellQr(c) {
-    if (c.qrBuilt || !hostBase || typeof QRCode === 'undefined') return;
-    const signUrl = `${hostBase}/sign.html?id=${c.id}&token=${encodeURIComponent(tabletToken)}`;
-    c.qrInner.innerHTML = '';
-    new QRCode(c.qrInner, { text: signUrl, width: 200, height: 200, correctLevel: QRCode.CorrectLevel.M });
-    c.qrBuilt = true;
-  }
-
-  function buildAllQr() {
-    for (const c of cells.values()) buildCellQr(c);
-  }
-
   function applyStatus(list) {
+    let anyOffline = false;
     list.forEach(({ id, online, aspect }) => {
       const c = cells.get(id);
       if (!c) return;
       c.wrap.classList.toggle('offline', !online);
-      c.dot.classList.toggle('online', online);
-      // 접속 안 된 칸에는 연결 QR코드를 보여주고, 접속되면 숨긴다.
-      if (!online) buildCellQr(c);
-      c.qrHolder.style.display = online ? 'none' : 'flex';
-      // 태블릿의 실제 화면 비율을 그대로 따라가 원본과 똑같은 비율로 그린다
-      // (찌그러지지 않음). 비율이 바뀌어 캔버스를 다시 잡을 때는 fitCanvas가
-      // 지금까지의 서명을 다시 그려주므로(replayHistory) 지워지지 않는다.
+      // 상단 연결 표시등 갱신
+      const ld = legendDots.get(id);
+      if (ld) ld.classList.toggle('online', online);
+      // 하단 QR 스트립: 미접속 태블릿만 QR을 보여준다.
+      const q = qrItems.get(id);
+      if (q) {
+        if (!online) buildQrItem(id);
+        q.item.style.display = online ? 'none' : 'flex';
+      }
+      if (!online) anyOffline = true;
+      // 태블릿의 실제 화면 비율을 그대로 따라가 원본과 똑같은 비율로 그린다.
       if (online && aspect && Math.abs(aspect - (c.aspect || 0)) > 0.01) {
         c.aspect = aspect;
         fitCanvas(c);
       }
     });
+    // 미접속 태블릿 유무가 바뀌면 하단 QR 스트립을 켜고/끄고, 보드 크기를 다시 계산한다.
+    if (anyOffline !== lastAnyOffline) {
+      lastAnyOffline = anyOffline;
+      qrStripEl.style.display = anyOffline ? 'flex' : 'none';
+      requestAnimationFrame(layoutGrid);
+    }
   }
 
   function applyStroke(id, points) {
@@ -377,13 +410,13 @@
         buildGrid();
         connect(password);
       });
-    // 접속 안 된 칸에 띄울 연결 QR코드를 만들기 위해 주소·토큰을 가져온다.
+    // 하단 QR 스트립에 넣을 연결 QR코드를 만들기 위해 주소·토큰을 가져온다.
     fetch('/api/host-info')
       .then((r) => r.json())
       .then(({ base, tabletToken: token }) => {
         hostBase = base;
         tabletToken = token;
-        buildAllQr();
+        for (let id = 1; id <= tabletCount; id++) buildQrItem(id);
       })
       .catch(() => {});
   }
