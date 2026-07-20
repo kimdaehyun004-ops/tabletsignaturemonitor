@@ -168,6 +168,98 @@
     }
   });
 
+  // ---------- 게스트 비밀번호 관리 ----------
+  const guestLabel = document.getElementById('guestLabel');
+  const guestDuration = document.getElementById('guestDuration');
+  const guestCreateBtn = document.getElementById('guestCreateBtn');
+  const guestStatus = document.getElementById('guestStatus');
+  const guestList = document.getElementById('guestList');
+
+  function formatRemaining(ms) {
+    if (ms <= 0) return '만료됨';
+    const totalMin = Math.floor(ms / 60000);
+    const days = Math.floor(totalMin / 1440);
+    const hours = Math.floor((totalMin % 1440) / 60);
+    const mins = totalMin % 60;
+    if (days > 0) return `${days}일 ${hours}시간 남음`;
+    if (hours > 0) return `${hours}시간 ${mins}분 남음`;
+    return `${mins}분 남음`;
+  }
+
+  function renderGuests(data) {
+    guestList.innerHTML = '';
+    if (!data.guests.length) {
+      const em = document.createElement('div');
+      em.className = 'empty-hint';
+      em.textContent = '발급된 게스트 비밀번호가 없습니다.';
+      guestList.appendChild(em);
+    }
+    data.guests.forEach((g) => {
+      const row = document.createElement('div');
+      row.className = 'guest-row';
+
+      const code = document.createElement('span');
+      code.className = 'guest-code';
+      code.textContent = g.code;
+
+      const meta = document.createElement('span');
+      meta.className = 'guest-meta';
+      meta.textContent = (g.label ? g.label + ' · ' : '') + formatRemaining(g.remainingMs);
+
+      const del = document.createElement('button');
+      del.className = 'danger';
+      del.textContent = '삭제';
+      del.addEventListener('click', async () => {
+        await fetch(`/api/guests?code=${encodeURIComponent(g.code)}&pw=${encodeURIComponent(pw)}`, { method: 'DELETE' });
+        refreshGuests();
+      });
+
+      row.appendChild(code);
+      row.appendChild(meta);
+      row.appendChild(del);
+      guestList.appendChild(row);
+    });
+    guestCreateBtn.disabled = data.guests.length >= data.max;
+    if (data.guests.length >= data.max) {
+      guestStatus.textContent = `최대 ${data.max}개까지 발급됨. 삭제 후 발급하세요.`;
+    }
+  }
+
+  function refreshGuests() {
+    fetch(`/api/guests?pw=${encodeURIComponent(pw)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data) renderGuests(data);
+      })
+      .catch(() => {});
+  }
+
+  guestCreateBtn.addEventListener('click', async () => {
+    guestStatus.textContent = '발급 중...';
+    try {
+      const res = await fetch(`/api/guests?pw=${encodeURIComponent(pw)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ label: guestLabel.value, durationHours: parseFloat(guestDuration.value) }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        guestStatus.textContent = data.error || '발급 실패';
+        return;
+      }
+      guestStatus.textContent = `발급됨: ${data.code}`;
+      guestLabel.value = '';
+      refreshGuests();
+    } catch {
+      guestStatus.textContent = '오류 발생';
+    }
+  });
+
+  // 남은 시간 표시를 위해 1분마다 갱신.
+  setInterval(() => {
+    if (document.getElementById('adminPage').style.display !== 'none') refreshGuests();
+  }, 60000);
+
   function formatTime(iso) {
     if (!iso) return '';
     const d = new Date(iso);
@@ -217,6 +309,7 @@
         sessionStorage.setItem('adminPassword', pw);
         render(items);
         refreshBgSlots();
+        refreshGuests();
       })
       .catch(() => {
         loginError.textContent = '비밀번호가 올바르지 않습니다.';

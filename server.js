@@ -23,6 +23,47 @@ if (!ADMIN_PASSWORD || !TABLET_TOKEN) {
 const DATA_DIR = path.join(__dirname, 'data', 'signatures');
 fs.mkdirSync(DATA_DIR, { recursive: true });
 
+// 게스트(임시) 비밀번호: 관리자가 접속 기간을 정해 발급한다. 이 비번으로는
+// 실시간 모니터링만 볼 수 있고, 다운로드/관리 기능은 관리자 전용이다.
+const GUESTS_FILE = path.join(__dirname, 'data', 'guests.json');
+const MAX_GUESTS = 5;
+let guests = []; // [{ code, label, expiresAt }]
+try {
+  if (fs.existsSync(GUESTS_FILE)) {
+    const arr = JSON.parse(fs.readFileSync(GUESTS_FILE, 'utf8'));
+    if (Array.isArray(arr)) guests = arr;
+  }
+} catch {
+  guests = [];
+}
+function pruneGuests() {
+  const now = Date.now();
+  const before = guests.length;
+  guests = guests.filter((g) => g.expiresAt > now);
+  if (guests.length !== before) saveGuests();
+}
+function saveGuests() {
+  try {
+    fs.writeFileSync(GUESTS_FILE, JSON.stringify(guests));
+  } catch {
+    // 디스크 저장 실패해도 메모리에는 남아있으므로 계속 동작한다.
+  }
+}
+function generateGuestCode() {
+  // 입력하기 쉬운 6자리 숫자 코드. 관리자 비번/기존 게스트와 겹치지 않게 한다.
+  for (let i = 0; i < 50; i++) {
+    const code = String(crypto.randomInt(100000, 1000000));
+    if (code !== ADMIN_PASSWORD && !guests.some((g) => g.code === code)) return code;
+  }
+  return String(Date.now()).slice(-6);
+}
+// 모니터링을 볼 수 있는 비밀번호인지 (관리자 또는 유효한 게스트).
+function isValidViewer(password) {
+  if (timingSafeEqual(password || '', ADMIN_PASSWORD)) return true;
+  pruneGuests();
+  return guests.some((g) => timingSafeEqual(password || '', g.code));
+}
+
 // 태블릿 서명 화면에 깔리는 배경 이미지(브랜딩 프레임). 태블릿마다 서로 다른
 // 배경을 둘 수 있도록 태블릿 번호별로 저장한다.
 const BG_DIR = path.join(__dirname, 'data', 'backgrounds');
@@ -227,6 +268,48 @@ app.delete('/api/background', (req, res) => {
   res.json({ ok: true, id });
 });
 
+// 게스트 비밀번호 목록. 관리자 전용.
+app.get('/api/guests', (req, res) => {
+  if (!checkAdminPw(req)) return res.status(401).json({ error: 'unauthorized' });
+  pruneGuests();
+  const now = Date.now();
+  res.json({
+    max: MAX_GUESTS,
+    guests: guests
+      .map((g) => ({ code: g.code, label: g.label || '', expiresAt: g.expiresAt, remainingMs: g.expiresAt - now }))
+      .sort((a, b) => a.expiresAt - b.expiresAt),
+  });
+});
+
+// 게스트 비밀번호 발급. 관리자 전용. body: { label, durationHours }
+app.post('/api/guests', (req, res) => {
+  if (!checkAdminPw(req)) return res.status(401).json({ error: 'unauthorized' });
+  pruneGuests();
+  if (guests.length >= MAX_GUESTS) {
+    return res.status(400).json({ error: `게스트는 최대 ${MAX_GUESTS}개까지 발급할 수 있습니다. 기존 것을 삭제하세요.` });
+  }
+  const hours = parseFloat((req.body && req.body.durationHours) || 0);
+  if (!Number.isFinite(hours) || hours <= 0 || hours > 24 * 30) {
+    return res.status(400).json({ error: '접속 기간이 올바르지 않습니다.' });
+  }
+  const label = String((req.body && req.body.label) || '').slice(0, 40);
+  const code = generateGuestCode();
+  const expiresAt = Date.now() + hours * 3600 * 1000;
+  guests.push({ code, label, expiresAt });
+  saveGuests();
+  res.json({ ok: true, code, label, expiresAt });
+});
+
+// 게스트 비밀번호 삭제(회수). 관리자 전용.
+app.delete('/api/guests', (req, res) => {
+  if (!checkAdminPw(req)) return res.status(401).json({ error: 'unauthorized' });
+  const code = String(req.query.code || '');
+  const before = guests.length;
+  guests = guests.filter((g) => g.code !== code);
+  if (guests.length !== before) saveGuests();
+  res.json({ ok: true });
+});
+
 const server = app.listen(PORT, () => {
   const linksUrl = `http://localhost:${PORT}/links.html`;
   console.log(`Tablet signature monitor${INSTANCE_NAME ? ` [${INSTANCE_NAME}]` : ''} listening on http://localhost:${PORT}`);
@@ -314,7 +397,8 @@ wss.on('connection', (ws) => {
 
     if (msg.type === 'hello') {
       if (msg.role === 'monitor') {
-        if (!timingSafeEqual(msg.password || '', ADMIN_PASSWORD)) {
+        // 관리자 비번 또는 유효한 게스트 비번이면 모니터링을 볼 수 있다.
+        if (!isValidViewer(msg.password || '')) {
           ws.send(JSON.stringify({ type: 'auth_error', message: '비밀번호가 올바르지 않습니다.' }));
           ws.close();
           return;

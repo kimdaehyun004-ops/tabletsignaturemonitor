@@ -465,6 +465,68 @@ html, body {
 .bg-slot-btns button.danger { background: #1a1f24; color: #f87171; border-color: #5a2a2a; }
 .sig-title { font-size: 16px; margin: 0 0 12px; }
 
+/* 게스트 비밀번호 */
+.guest-create {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.guest-create input[type='text'] {
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid #333;
+  background: #0f1216;
+  color: #eee;
+  font-size: 13px;
+}
+.guest-create select {
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid #333;
+  background: #0f1216;
+  color: #eee;
+  font-size: 13px;
+}
+.guest-create button {
+  padding: 8px 14px;
+  border-radius: 6px;
+  border: 1px solid #3a4250;
+  background: #2563eb;
+  color: #fff;
+  cursor: pointer;
+  font-size: 13px;
+}
+.guest-create button:disabled { opacity: 0.5; cursor: not-allowed; }
+.guest-list { display: flex; flex-direction: column; gap: 8px; }
+.guest-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #12161b;
+  border: 1px solid #2a2f36;
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+.guest-code {
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  color: #fbbf24;
+  font-family: monospace;
+}
+.guest-meta { flex: 1; font-size: 13px; color: #9aa4b2; }
+.guest-row button.danger {
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid #5a2a2a;
+  background: #1a1f24;
+  color: #f87171;
+  cursor: pointer;
+  font-size: 13px;
+}
+
 /* ---- 통합 대시보드 ---- */
 .edit-box {
   background: #1a1f24;

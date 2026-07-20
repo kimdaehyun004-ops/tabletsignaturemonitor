@@ -36,6 +36,24 @@
       <div id="bgSlots" class="bg-slots"></div>
     </div>
 
+    <div class="bg-section">
+      <h2>게스트 비밀번호</h2>
+      <p class="bg-hint">접속 기간을 정해 게스트 비밀번호를 발급합니다 (최대 5개). 게스트는 이 비번으로 <b>실시간 모니터링만</b> 볼 수 있고, 다운로드·배경·관리 기능은 사용할 수 없습니다. 기간이 지나면 자동으로 만료됩니다.</p>
+      <div class="guest-create">
+        <input id="guestLabel" type="text" placeholder="이름/메모 (선택)" />
+        <select id="guestDuration">
+          <option value="1">1시간</option>
+          <option value="3">3시간</option>
+          <option value="6">6시간</option>
+          <option value="24">1일</option>
+          <option value="72">3일</option>
+        </select>
+        <button id="guestCreateBtn">발급</button>
+        <span class="bg-status" id="guestStatus"></span>
+      </div>
+      <div id="guestList" class="guest-list"></div>
+    </div>
+
     <h2 class="sig-title">저장된 서명</h2>
     <div id="sigGrid" class="sig-grid"></div>
     <div id="emptyHint" class="empty-hint" style="display:none;">아직 저장된 서명이 없습니다.</div>
