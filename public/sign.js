@@ -35,10 +35,9 @@
     };
   }
 
-  // 예전에는 속도에 따라 굵기를 바꿨지만, 획을 잘게 나눠 그리는 구조에서
-  // 조각마다 굵기가 달라지면 경계가 어긋나 선이 갈라져(깨져) 보였다.
-  // 그래서 굵기를 일정하게 유지해 깔끔한 펜 선으로 그린다.
-  const PEN_WIDTH = 2.8;
+  // 굵기를 일정하게 유지해 깔끔한 펜 선으로 그린다. 값은 사용자가 고를 수 있고
+  // 브라우저에 저장되어 유지된다.
+  let PEN_WIDTH = parseFloat(localStorage.getItem('penWidth') || '2.8') || 2.8;
   function createWidthTracker() {
     return {
       reset() {},
@@ -63,6 +62,9 @@
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') requestWakeLock();
   });
+
+  // 서명 중 길게 눌러 뜨는 메뉴(컨텍스트 메뉴)를 막아 실수 조작을 줄인다.
+  document.addEventListener('contextmenu', (e) => e.preventDefault());
 
   const params = new URLSearchParams(location.search);
   let tabletId = params.get('id') || localStorage.getItem('tabletId');
@@ -152,6 +154,14 @@
       }
     });
     document.addEventListener('fullscreenchange', updateFullscreenBtn);
+
+    // 펜 굵기 선택 (얇게/보통/굵게/매우 굵게). 선택값은 브라우저에 저장된다.
+    const penWidthSelect = document.getElementById('penWidthSelect');
+    penWidthSelect.value = String(PEN_WIDTH);
+    penWidthSelect.addEventListener('change', () => {
+      PEN_WIDTH = parseFloat(penWidthSelect.value) || 2.8;
+      localStorage.setItem('penWidth', String(PEN_WIDTH));
+    });
 
     // 화면 정리(숨김) 모드: 상단바·하단 버튼을 숨기고 서명 영역만 남긴다.
     // 좌상단 미니 표시등을 더블 터치하면 다시 나타난다.
