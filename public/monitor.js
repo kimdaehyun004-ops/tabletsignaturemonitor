@@ -49,6 +49,7 @@
 
   // 화면 캡처를 위한 표시 설정 (브라우저에 저장되어 유지된다).
   let showLabels = localStorage.getItem('monShowLabels') === '1'; // 기본: 글씨 숨김
+  let showBorders = localStorage.getItem('monBorders') !== '0'; // 기본: 칸 구분선 켜짐
   let hideOffline = localStorage.getItem('monHideOffline') === '1'; // 기본: 미접속도 표시
   let forcedCols = parseInt(localStorage.getItem('monCols') || '0', 10) || 0; // 0=자동
   let order = []; // 화면에 배치할 태블릿 순서 (드래그로 변경)
@@ -128,6 +129,7 @@
     order = valid;
     applyOrder();
     applyLabelVisibility();
+    applyBorders();
     buildLegend();
     buildQrStrip();
     layoutGrid();
@@ -154,6 +156,10 @@
 
   function applyLabelVisibility() {
     grid.classList.toggle('hide-labels', !showLabels);
+  }
+
+  function applyBorders() {
+    grid.classList.toggle('show-borders', showBorders);
   }
 
   // 미접속 숨기기 설정에 따라 각 칸을 보이거나 감춘다.
@@ -535,12 +541,19 @@
   // 표시 설정 토글 (글씨 표시 / 미접속 숨기기). 상태는 브라우저에 저장된다.
   const toggleLabels = document.getElementById('toggleLabels');
   const toggleHideOffline = document.getElementById('toggleHideOffline');
+  const toggleBorders = document.getElementById('toggleBorders');
   toggleLabels.checked = showLabels;
+  toggleBorders.checked = showBorders;
   toggleHideOffline.checked = hideOffline;
   toggleLabels.addEventListener('change', () => {
     showLabels = toggleLabels.checked;
     localStorage.setItem('monShowLabels', showLabels ? '1' : '0');
     applyLabelVisibility();
+  });
+  toggleBorders.addEventListener('change', () => {
+    showBorders = toggleBorders.checked;
+    localStorage.setItem('monBorders', showBorders ? '1' : '0');
+    applyBorders();
   });
   toggleHideOffline.addEventListener('change', () => {
     hideOffline = toggleHideOffline.checked;

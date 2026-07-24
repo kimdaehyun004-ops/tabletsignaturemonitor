@@ -267,6 +267,11 @@ html, body {
 .cell:active { cursor: grabbing; }
 /* 글씨 숨김 모드: 화면을 통째로 캡처해서 쓸 수 있도록 라벨을 모두 감춘다. */
 .board.hide-labels .cell-label { display: none; }
+/* 칸 구분선: 흰 화면에서 각 태블릿 영역을 구분하기 쉽게 테두리를 준다. */
+.board.show-borders .cell {
+  border: 1px solid #c9ced6;
+  border-radius: 6px;
+}
 .cell canvas {
   background: #fff;
   display: block;
