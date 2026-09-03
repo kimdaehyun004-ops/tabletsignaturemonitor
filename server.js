@@ -446,7 +446,8 @@ wss.on('connection', (ws) => {
         }
         ws.role = 'monitor';
         monitors.add(ws);
-        ws.send(JSON.stringify({ type: 'auth_ok' }));
+        // 이 비번으로 배경까지 편집할 수 있는지 알려줘, 모니터에 "배경 편집" 버튼을 띄울지 결정하게 한다.
+        ws.send(JSON.stringify({ type: 'auth_ok', canBackground: isBackgroundEditor(msg.password || '') }));
         ws.send(JSON.stringify({ type: 'status', tablets: tabletStatusList() }));
         return;
       }

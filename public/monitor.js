@@ -464,6 +464,11 @@
         sessionStorage.setItem('monitorPassword', password);
         loginEl.style.display = 'none';
         monitorEl.style.display = 'flex';
+        // 배경 편집 권한이 있으면 헤더에 "배경 편집" 버튼을 띄운다.
+        // 링크에 비번을 실어서 열면 bgedit 페이지가 재로그인 없이 바로 들어간다.
+        const bgeditLink = document.getElementById('bgeditLink');
+        bgeditLink.href = 'bgedit.html?pw=' + encodeURIComponent(password);
+        bgeditLink.style.display = msg.canBackground ? 'inline-block' : 'none';
         // 로그인 화면이 display:none이었을 때는 크기를 잴 수 없으므로,
         // 그리드가 실제로 화면에 보이게 된 뒤 다시 한번 배치를 계산한다.
         requestAnimationFrame(layoutGrid);

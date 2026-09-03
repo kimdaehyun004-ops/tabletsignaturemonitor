@@ -189,9 +189,12 @@
     if (e.key === 'Enter') document.getElementById('loginBtn').click();
   });
 
-  const savedPw = sessionStorage.getItem('bgeditPassword');
-  if (savedPw) {
-    pw = savedPw;
+  // 바로 들어가는 링크(?pw=코드) → 이전에 이 페이지에서 쓴 비번 →
+  // 모니터링에서 로그인한 비번 순으로 자동 로그인을 시도한다.
+  const urlPw = new URLSearchParams(location.search).get('pw');
+  const autoPw = urlPw || sessionStorage.getItem('bgeditPassword') || sessionStorage.getItem('monitorPassword');
+  if (autoPw) {
+    pw = autoPw;
     enter();
   }
 })();
