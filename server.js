@@ -274,8 +274,21 @@ app.delete('/api/background', (req, res) => {
   res.json({ ok: true, id });
 });
 
+// 게스트 관리 API는 다른 버전(다른 도메인)의 관리자 페이지에서도 호출할 수 있어야
+// 하므로(한 게스트를 V1/V2/V3에 동시 발급) CORS를 허용한다.
+function guestCors(res) {
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'GET,POST,DELETE,OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Content-Type');
+}
+app.options('/api/guests', (req, res) => {
+  guestCors(res);
+  res.status(204).end();
+});
+
 // 게스트 비밀번호 목록. 관리자 전용.
 app.get('/api/guests', (req, res) => {
+  guestCors(res);
   if (!checkAdminPw(req)) return res.status(401).json({ error: 'unauthorized' });
   pruneGuests();
   const now = Date.now();
@@ -287,21 +300,41 @@ app.get('/api/guests', (req, res) => {
   });
 });
 
-// 게스트 비밀번호 발급. 관리자 전용. body: { label, durationHours }
+// 게스트 비밀번호 발급. 관리자 전용. body: { label, durationHours, canBackground, code? }
+// code를 지정하면 그 코드로 만든다(여러 버전에 같은 코드를 심을 때 사용). 이미 있으면 갱신.
 app.post('/api/guests', (req, res) => {
+  guestCors(res);
   if (!checkAdminPw(req)) return res.status(401).json({ error: 'unauthorized' });
   pruneGuests();
-  if (guests.length >= MAX_GUESTS) {
-    return res.status(400).json({ error: `게스트는 최대 ${MAX_GUESTS}개까지 발급할 수 있습니다. 기존 것을 삭제하세요.` });
-  }
   const hours = parseFloat((req.body && req.body.durationHours) || 0);
   if (!Number.isFinite(hours) || hours <= 0 || hours > 24 * 30) {
     return res.status(400).json({ error: '접속 기간이 올바르지 않습니다.' });
   }
   const label = String((req.body && req.body.label) || '').slice(0, 40);
   const canBackground = !!(req.body && req.body.canBackground);
-  const code = generateGuestCode();
   const expiresAt = Date.now() + hours * 3600 * 1000;
+  const requestedCode = String((req.body && req.body.code) || '').trim();
+
+  // 지정된 코드가 이미 있으면(다른 버전에서 같은 코드를 다시 심는 경우) 내용만 갱신.
+  if (requestedCode) {
+    if (!/^\d{6}$/.test(requestedCode) || requestedCode === ADMIN_PASSWORD) {
+      return res.status(400).json({ error: '잘못된 코드입니다.' });
+    }
+    const existing = guests.find((g) => g.code === requestedCode);
+    if (existing) {
+      existing.label = label;
+      existing.expiresAt = expiresAt;
+      existing.canBackground = canBackground;
+      saveGuests();
+      return res.json({ ok: true, code: requestedCode, label, expiresAt, canBackground, updated: true });
+    }
+  }
+
+  // 새로 추가할 때만 개수 제한을 적용한다.
+  if (guests.length >= MAX_GUESTS) {
+    return res.status(400).json({ error: `게스트는 최대 ${MAX_GUESTS}개까지 발급할 수 있습니다. 기존 것을 삭제하세요.` });
+  }
+  const code = requestedCode || generateGuestCode();
   guests.push({ code, label, expiresAt, canBackground });
   saveGuests();
   res.json({ ok: true, code, label, expiresAt, canBackground });
@@ -309,6 +342,7 @@ app.post('/api/guests', (req, res) => {
 
 // 게스트 비밀번호 삭제(회수). 관리자 전용.
 app.delete('/api/guests', (req, res) => {
+  guestCors(res);
   if (!checkAdminPw(req)) return res.status(401).json({ error: 'unauthorized' });
   const code = String(req.query.code || '');
   const before = guests.length;

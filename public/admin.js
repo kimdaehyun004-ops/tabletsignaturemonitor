@@ -174,6 +174,56 @@
   const guestCreateBtn = document.getElementById('guestCreateBtn');
   const guestStatus = document.getElementById('guestStatus');
   const guestList = document.getElementById('guestList');
+  const guestVersionTargets = document.getElementById('guestVersionTargets');
+  const guestVersionsEditBox = document.getElementById('guestVersionsEditBox');
+  const guestVersionsInput = document.getElementById('guestVersionsInput');
+
+  function normalizeUrl(u) {
+    return u.trim().replace(/\/+$/, '');
+  }
+  // 여러 버전에 동시 발급할 대상 주소 목록 (대시보드와 같은 localStorage 키를 공유).
+  function loadVersionUrls() {
+    try {
+      const arr = JSON.parse(localStorage.getItem('dashboardUrls') || 'null');
+      if (Array.isArray(arr) && arr.length) return arr;
+    } catch {}
+    return [location.origin];
+  }
+  let versionUrls = loadVersionUrls();
+
+  function renderVersionTargets() {
+    guestVersionTargets.innerHTML = '';
+    versionUrls.forEach((url, i) => {
+      const label = document.createElement('label');
+      label.className = 'mon-toggle';
+      label.style.color = '#9aa4b2';
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.checked = true;
+      cb.dataset.url = url;
+      const isSelf = normalizeUrl(url) === normalizeUrl(location.origin);
+      const short = url.replace(/^https?:\/\//, '');
+      label.appendChild(cb);
+      label.appendChild(document.createTextNode(' ' + short + (isSelf ? ' (현재)' : '')));
+      guestVersionTargets.appendChild(label);
+    });
+  }
+  renderVersionTargets();
+
+  document.getElementById('guestVersionsEdit').addEventListener('click', () => {
+    guestVersionsInput.value = versionUrls.join('\n');
+    guestVersionsEditBox.style.display = guestVersionsEditBox.style.display === 'none' ? 'block' : 'none';
+  });
+  document.getElementById('guestVersionsSave').addEventListener('click', () => {
+    const list = guestVersionsInput.value
+      .split('\n')
+      .map(normalizeUrl)
+      .filter((u) => /^https?:\/\//.test(u));
+    versionUrls = list.length ? list : [location.origin];
+    localStorage.setItem('dashboardUrls', JSON.stringify(versionUrls));
+    guestVersionsEditBox.style.display = 'none';
+    renderVersionTargets();
+  });
 
   function formatRemaining(ms) {
     if (ms <= 0) return '만료됨';
@@ -210,7 +260,12 @@
       del.className = 'danger';
       del.textContent = '삭제';
       del.addEventListener('click', async () => {
-        await fetch(`/api/guests?code=${encodeURIComponent(g.code)}&pw=${encodeURIComponent(pw)}`, { method: 'DELETE' });
+        // 이 버전 + 등록된 다른 버전 모두에서 삭제(같은 코드가 심겨 있을 수 있으므로).
+        await Promise.all(
+          versionUrls.map((url) =>
+            fetch(`${url}/api/guests?code=${encodeURIComponent(g.code)}&pw=${encodeURIComponent(pw)}`, { method: 'DELETE' }).catch(() => {})
+          )
+        );
         refreshGuests();
       });
 
@@ -234,25 +289,57 @@
       .catch(() => {});
   }
 
-  guestCreateBtn.addEventListener('click', async () => {
-    guestStatus.textContent = '발급 중...';
+  function selectedTargets() {
+    return Array.from(guestVersionTargets.querySelectorAll('input[type=checkbox]:checked')).map((cb) => cb.dataset.url);
+  }
+
+  async function postGuest(url, body) {
     try {
-      const res = await fetch(`/api/guests?pw=${encodeURIComponent(pw)}`, {
+      const res = await fetch(`${url}/api/guests?pw=${encodeURIComponent(pw)}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ label: guestLabel.value, durationHours: parseFloat(guestDuration.value), canBackground: document.getElementById('guestCanBackground').checked }),
+        body: JSON.stringify(body),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        guestStatus.textContent = data.error || '발급 실패';
-        return;
-      }
-      guestStatus.textContent = `발급됨: ${data.code}`;
-      guestLabel.value = '';
-      refreshGuests();
+      return { ok: res.ok, data };
     } catch {
-      guestStatus.textContent = '오류 발생';
+      return { ok: false, data: {} };
     }
+  }
+
+  guestCreateBtn.addEventListener('click', async () => {
+    const targets = selectedTargets();
+    if (!targets.length) {
+      guestStatus.textContent = '적용할 버전을 하나 이상 선택하세요.';
+      return;
+    }
+    guestStatus.textContent = '발급 중...';
+    const body = {
+      label: guestLabel.value,
+      durationHours: parseFloat(guestDuration.value),
+      canBackground: document.getElementById('guestCanBackground').checked,
+    };
+
+    // 1) 첫 번째 대상에서 코드를 발급받는다.
+    const first = await postGuest(targets[0], body);
+    if (!first.ok) {
+      guestStatus.textContent = (first.data && first.data.error) || `발급 실패 (${targets[0].replace(/^https?:\/\//, '')})`;
+      return;
+    }
+    const code = first.data.code;
+
+    // 2) 같은 코드를 나머지 버전들에도 심는다.
+    const failed = [];
+    for (const url of targets.slice(1)) {
+      const r = await postGuest(url, { ...body, code });
+      if (!r.ok) failed.push(url.replace(/^https?:\/\//, ''));
+    }
+
+    const applied = targets.length - failed.length;
+    guestStatus.textContent =
+      `발급됨: ${code} (${applied}/${targets.length}개 버전)` + (failed.length ? ` · 실패: ${failed.join(', ')}` : '');
+    guestLabel.value = '';
+    refreshGuests();
   });
 
   // 남은 시간 표시를 위해 1분마다 갱신.

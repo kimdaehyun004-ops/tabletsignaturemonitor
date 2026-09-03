@@ -575,6 +575,33 @@ html, body {
   color: #fff;
   cursor: pointer;
 }
+
+/* 게스트 다중 버전 발급 */
+.guest-versions {
+  background: #12161b;
+  border: 1px solid #2a2f36;
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin: 10px 0 14px;
+}
+.guest-versions-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 13px;
+  color: #9aa4b2;
+  margin-bottom: 8px;
+}
+.guest-version-targets { display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.link-btn {
+  background: none;
+  border: none;
+  color: #9fb3ff;
+  cursor: pointer;
+  font-size: 13px;
+  padding: 0;
+}
 .dash-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
