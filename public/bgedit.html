@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>태블릿 배경 편집</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="login" class="login-box">
+    <h2>배경 편집 접속</h2>
+    <input id="passwordInput" type="password" placeholder="비밀번호 (관리자 또는 게스트)" />
+    <button id="loginBtn">입장</button>
+    <div class="login-error" id="loginError"></div>
+  </div>
+
+  <div id="page" class="admin-page" style="display:none;">
+    <div class="admin-header">
+      <h1>태블릿 배경 편집</h1>
+      <span id="instanceBadge" class="instance-badge" style="display:none;"></span>
+      <a href="monitor.html" target="_blank" rel="noopener" class="admin-link">실시간 모니터링 ↗</a>
+    </div>
+    <div class="bg-section">
+      <p class="bg-hint">태블릿마다 다른 배경(브랜딩 프레임)을 올릴 수 있습니다. 각 칸에서 이미지를 올리면 그 태블릿에만 즉시 적용됩니다. (서명은 배경 위에 그려지고, 저장 파일에는 서명 획만 포함됩니다.)</p>
+      <div class="bg-allrow">
+        <input type="file" id="bgAllFile" accept="image/png,image/jpeg,image/webp,image/gif" />
+        <button id="bgAllApply">모든 태블릿에 같게 적용</button>
+        <button id="bgAllClear" class="danger">전체 배경 삭제</button>
+        <span class="bg-status" id="bgAllStatus"></span>
+      </div>
+      <div id="bgSlots" class="bg-slots"></div>
+    </div>
+  </div>
+
+  <script src="bgedit.js"></script>
+</body>
+</html>

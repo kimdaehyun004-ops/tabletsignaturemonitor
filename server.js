@@ -63,6 +63,12 @@ function isValidViewer(password) {
   pruneGuests();
   return guests.some((g) => timingSafeEqual(password || '', g.code));
 }
+// 배경 이미지를 바꿀 수 있는 비밀번호인지 (관리자 또는 "배경 변경 허용" 게스트).
+function isBackgroundEditor(password) {
+  if (timingSafeEqual(password || '', ADMIN_PASSWORD)) return true;
+  pruneGuests();
+  return guests.some((g) => g.canBackground && timingSafeEqual(password || '', g.code));
+}
 
 // 태블릿 서명 화면에 깔리는 배경 이미지(브랜딩 프레임). 태블릿마다 서로 다른
 // 배경을 둘 수 있도록 태블릿 번호별로 저장한다.
@@ -204,7 +210,7 @@ app.get('/api/background-info', (req, res) => {
 
 // 모든 태블릿의 배경 정보를 한번에 (관리자 화면에서 슬롯을 그릴 때 사용). 비밀번호 필요.
 app.get('/api/backgrounds-info', (req, res) => {
-  if (!checkAdminPw(req)) return res.status(401).json({ error: 'unauthorized' });
+  if (!isBackgroundEditor(req.query.pw || "")) return res.status(401).json({ error: 'unauthorized' });
   const list = [];
   for (let id = 1; id <= TABLET_COUNT; id++) {
     list.push({ id, hasBackground: hasBg(id), version: bgVersion(id) });
@@ -237,7 +243,7 @@ function clearBackgroundForId(id) {
 
 // 배경 업로드/교체. id=숫자면 그 태블릿, id=all이면 모든 태블릿에 같은 이미지를 적용. 비밀번호 필요.
 app.post('/api/background', (req, res) => {
-  if (!checkAdminPw(req)) return res.status(401).json({ error: 'unauthorized' });
+  if (!isBackgroundEditor(req.query.pw || "")) return res.status(401).json({ error: 'unauthorized' });
   const dataUrl = String((req.body && req.body.dataUrl) || '');
   const match = dataUrl.match(/^data:(image\/(?:png|jpeg|jpg|webp|gif));base64,(.+)$/);
   if (!match) return res.status(400).json({ error: 'png/jpeg/webp/gif 이미지만 업로드할 수 있습니다.' });
@@ -257,7 +263,7 @@ app.post('/api/background', (req, res) => {
 
 // 배경 삭제. id=숫자 또는 id=all. 비밀번호 필요.
 app.delete('/api/background', (req, res) => {
-  if (!checkAdminPw(req)) return res.status(401).json({ error: 'unauthorized' });
+  if (!isBackgroundEditor(req.query.pw || "")) return res.status(401).json({ error: 'unauthorized' });
   if (req.query.id === 'all') {
     for (let id = 1; id <= TABLET_COUNT; id++) clearBackgroundForId(id);
     return res.json({ ok: true, applied: 'all' });
@@ -276,7 +282,7 @@ app.get('/api/guests', (req, res) => {
   res.json({
     max: MAX_GUESTS,
     guests: guests
-      .map((g) => ({ code: g.code, label: g.label || '', expiresAt: g.expiresAt, remainingMs: g.expiresAt - now }))
+      .map((g) => ({ code: g.code, label: g.label || '', expiresAt: g.expiresAt, remainingMs: g.expiresAt - now, canBackground: !!g.canBackground }))
       .sort((a, b) => a.expiresAt - b.expiresAt),
   });
 });
@@ -293,11 +299,12 @@ app.post('/api/guests', (req, res) => {
     return res.status(400).json({ error: '접속 기간이 올바르지 않습니다.' });
   }
   const label = String((req.body && req.body.label) || '').slice(0, 40);
+  const canBackground = !!(req.body && req.body.canBackground);
   const code = generateGuestCode();
   const expiresAt = Date.now() + hours * 3600 * 1000;
-  guests.push({ code, label, expiresAt });
+  guests.push({ code, label, expiresAt, canBackground });
   saveGuests();
-  res.json({ ok: true, code, label, expiresAt });
+  res.json({ ok: true, code, label, expiresAt, canBackground });
 });
 
 // 게스트 비밀번호 삭제(회수). 관리자 전용.

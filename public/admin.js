@@ -204,7 +204,7 @@
 
       const meta = document.createElement('span');
       meta.className = 'guest-meta';
-      meta.textContent = (g.label ? g.label + ' · ' : '') + formatRemaining(g.remainingMs);
+      meta.textContent = (g.label ? g.label + ' · ' : '') + formatRemaining(g.remainingMs) + (g.canBackground ? ' · 배경변경 가능' : '');
 
       const del = document.createElement('button');
       del.className = 'danger';
@@ -240,7 +240,7 @@
       const res = await fetch(`/api/guests?pw=${encodeURIComponent(pw)}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ label: guestLabel.value, durationHours: parseFloat(guestDuration.value) }),
+        body: JSON.stringify({ label: guestLabel.value, durationHours: parseFloat(guestDuration.value), canBackground: document.getElementById('guestCanBackground').checked }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
