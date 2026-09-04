@@ -282,6 +282,18 @@
           ws.close();
         } else if (msg.type === 'background') {
           applyBackground(msg.hasBackground, msg.version);
+        } else if (msg.type === 'remote_clear') {
+          // 모니터(관리자/게스트)가 원격으로 이 태블릿 화면을 지웠다.
+          drawing = false;
+          activePointerId = null;
+          strokeHistory = [];
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          toast.textContent = '화면이 초기화되었습니다';
+          toast.classList.add('show');
+          setTimeout(() => {
+            toast.classList.remove('show');
+            toast.textContent = '저장되었습니다';
+          }, 1200);
         }
       });
 

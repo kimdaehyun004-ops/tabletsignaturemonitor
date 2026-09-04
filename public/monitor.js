@@ -103,8 +103,23 @@
       label.appendChild(nameSpan);
       label.appendChild(savedBadge);
 
+      // 이 태블릿의 "현재 서명"을 원격으로 지우는 버튼 (마우스를 올리면 나타난다).
+      const clearBtn = document.createElement('button');
+      clearBtn.className = 'cell-clear';
+      clearBtn.type = 'button';
+      clearBtn.textContent = '지우기';
+      clearBtn.title = `태블릿 ${id}의 현재 서명 지우기`;
+      clearBtn.draggable = false;
+      clearBtn.addEventListener('pointerdown', (e) => e.stopPropagation());
+      clearBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (!confirm(`태블릿 ${id}의 현재 서명을 지울까요?`)) return;
+        sendRemoteClear(id);
+      });
+
       cell.appendChild(canvas);
       cell.appendChild(label);
+      cell.appendChild(clearBtn);
       grid.appendChild(cell);
 
       // 마우스로 드래그해 위치(순서)를 바꿀 수 있게 한다.
@@ -439,6 +454,15 @@
     c.queue.length = 0;
     c.history.length = 0;
     c.ctx.clearRect(0, 0, c.canvas.width, c.canvas.height);
+    if (c.savedBadge) c.savedBadge.classList.remove('show');
+  }
+
+  // 모니터에서 특정 태블릿의 현재 서명을 원격으로 지우라고 서버에 요청한다.
+  // 서버가 그 태블릿과 모든 모니터에 clear를 전파하므로 화면이 함께 비워진다.
+  function sendRemoteClear(id) {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: 'remote_clear', id }));
+    }
   }
 
   function flashSaved(id) {

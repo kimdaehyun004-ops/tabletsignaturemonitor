@@ -518,6 +518,22 @@ wss.on('connection', (ws) => {
       return;
     }
 
+    // 모니터(관리자/게스트)가 특정 태블릿의 "현재 그려지고 있는" 서명을 원격으로 지운다.
+    // 다음 손님을 위해 화면을 비울 때 사용한다. 저장된 파일과는 무관하다.
+    if (msg.type === 'remote_clear' && ws.role === 'monitor') {
+      const target = parseInt(msg.id, 10);
+      if (Number.isInteger(target) && target >= 1 && target <= TABLET_COUNT) {
+        // 해당 태블릿에게 화면을 지우라고 알린다(태블릿이 접속해 있을 때).
+        const t = tablets.get(target);
+        if (t && t.ws.readyState === t.ws.OPEN) {
+          t.ws.send(JSON.stringify({ type: 'remote_clear' }));
+        }
+        // 모든 모니터의 해당 칸도 즉시 비운다.
+        broadcastToMonitors({ type: 'clear', id: target });
+      }
+      return;
+    }
+
     // 태블릿에서 온 드로잉/저장 이벤트만 처리
     if (ws.role !== 'tablet' || ws.tabletId == null) return;
     const id = ws.tabletId;

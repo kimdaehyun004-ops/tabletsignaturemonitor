@@ -311,6 +311,26 @@ html, body {
 }
 .saved-badge.show { opacity: 1; }
 .cell.flash { box-shadow: 0 0 0 3px #16a34a inset; transition: box-shadow 0.3s; }
+/* 현재 서명 원격 지우기 버튼: 평소엔 숨겼다가 칸에 마우스를 올리면 나타난다
+   (화면 캡처 시에는 보이지 않는다). */
+.cell-clear {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 5;
+  padding: 3px 9px;
+  font-size: 12px;
+  font-family: inherit;
+  border: 1px solid #e5b4b4;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #dc2626;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.cell:hover .cell-clear { opacity: 1; }
+.cell-clear:hover { background: #fee2e2; }
 
 /* 하단 QR 스트립 (미접속 태블릿 연결용) */
 .qr-strip {
