@@ -435,71 +435,7 @@ html, body {
   cursor: pointer;
 }
 .sig-card .sig-actions button.danger:disabled { opacity: 0.5; cursor: default; }
-.sig-card .sig-meta button.danger {
-  padding: 2px 8px;
-  border-radius: 6px;
-  border: 1px solid #5a2a2a;
-  background: #1a1f24;
-  color: #f87171;
-  font-size: 12px;
-  cursor: pointer;
-}
-.sig-card .sig-meta button.danger:disabled { opacity: 0.5; cursor: default; }
 .empty-hint { color: #888; padding: 20px 0; }
-
-/* 모니터 헤더의 "저장된 서명 관리" 버튼 (링크 버튼과 같은 모양) */
-button.admin-link {
-  background: transparent;
-  cursor: pointer;
-  font-family: inherit;
-  line-height: 1.2;
-}
-
-/* 저장된 서명 관리 오버레이 패널 (모니터 화면 위에 뜬다) */
-.saved-panel {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.55);
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  padding: 24px;
-  z-index: 1000;
-  overflow: auto;
-}
-.saved-panel-inner {
-  background: #14181d;
-  border: 1px solid #2a2f36;
-  border-radius: 12px;
-  padding: 16px 18px 22px;
-  width: min(1000px, 96vw);
-  max-height: 90vh;
-  overflow: auto;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
-}
-.saved-panel-head {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 14px;
-  position: sticky;
-  top: 0;
-  background: #14181d;
-  padding-bottom: 8px;
-}
-.saved-panel-head h2 { font-size: 16px; margin: 0; color: #e5e7eb; }
-.saved-panel-head button {
-  padding: 6px 12px;
-  border-radius: 6px;
-  border: 1px solid #3a4048;
-  background: #1a1f24;
-  color: #cbd5e1;
-  cursor: pointer;
-  font-size: 13px;
-}
-.saved-panel-head button.danger { border-color: #5a2a2a; color: #f87171; }
-.saved-panel-head button:disabled { opacity: 0.5; cursor: default; }
-.saved-panel-head .saved-close { margin-left: auto; border: none; font-size: 16px; }
 
 .bg-section {
   background: #1a1f24;
