@@ -187,6 +187,37 @@ app.get('/api/signature-file/:filename', (req, res) => {
   res.sendFile(filePath);
 });
 
+// 저장된 서명 이미지 1개 삭제. 관리자 전용. 파일명 형식이 아니면 거부해 경로 조작을 막는다.
+app.delete('/api/signature-file/:filename', (req, res) => {
+  if (!checkAdminPw(req)) return res.status(401).json({ error: 'unauthorized' });
+  const { filename } = req.params;
+  if (!SIGNATURE_FILENAME_RE.test(filename)) return res.status(400).json({ error: 'bad filename' });
+  const filePath = path.join(DATA_DIR, filename);
+  try {
+    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+  } catch {
+    return res.status(500).json({ error: '삭제에 실패했습니다.' });
+  }
+  res.json({ ok: true, filename });
+});
+
+// 저장된 서명 전체 삭제. 관리자 전용.
+app.delete('/api/signatures', (req, res) => {
+  if (!checkAdminPw(req)) return res.status(401).json({ error: 'unauthorized' });
+  let deleted = 0;
+  try {
+    for (const f of fs.readdirSync(DATA_DIR)) {
+      if (SIGNATURE_FILENAME_RE.test(f)) {
+        fs.unlinkSync(path.join(DATA_DIR, f));
+        deleted++;
+      }
+    }
+  } catch {
+    return res.status(500).json({ error: '삭제에 실패했습니다.' });
+  }
+  res.json({ ok: true, deleted });
+});
+
 function parseBgId(req) {
   const id = parseInt(req.query.id, 10);
   return Number.isInteger(id) && id >= 1 && id <= TABLET_COUNT ? id : null;

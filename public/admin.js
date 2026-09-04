@@ -371,13 +371,39 @@
       meta.className = 'sig-meta';
       const label = document.createElement('span');
       label.textContent = item.tabletId ? `태블릿 ${item.tabletId} · ${formatTime(item.timestamp)}` : item.filename;
+      const actions = document.createElement('span');
+      actions.className = 'sig-actions';
       const dl = document.createElement('a');
       dl.href = fileUrl;
       dl.download = item.filename;
       dl.textContent = '다운로드';
+      const del = document.createElement('button');
+      del.className = 'danger';
+      del.textContent = '삭제';
+      del.addEventListener('click', async () => {
+        if (!confirm('이 서명을 삭제할까요? 되돌릴 수 없습니다.')) return;
+        del.disabled = true;
+        try {
+          const res = await fetch(`/api/signature-file/${encodeURIComponent(item.filename)}?pw=${encodeURIComponent(pw)}`, {
+            method: 'DELETE',
+          });
+          if (!res.ok) {
+            del.disabled = false;
+            alert('삭제에 실패했습니다.');
+            return;
+          }
+          card.remove();
+          if (!sigGrid.children.length) emptyHint.style.display = 'block';
+        } catch {
+          del.disabled = false;
+          alert('삭제 중 오류가 발생했습니다.');
+        }
+      });
 
+      actions.appendChild(dl);
+      actions.appendChild(del);
       meta.appendChild(label);
-      meta.appendChild(dl);
+      meta.appendChild(actions);
       card.appendChild(img);
       card.appendChild(meta);
       sigGrid.appendChild(card);
@@ -413,6 +439,32 @@
     if (e.key === 'Enter') document.getElementById('loginBtn').click();
   });
   document.getElementById('refreshBtn').addEventListener('click', load);
+
+  const deleteAllBtn = document.getElementById('deleteAllBtn');
+  const sigDeleteStatus = document.getElementById('sigDeleteStatus');
+  deleteAllBtn.addEventListener('click', async () => {
+    if (!sigGrid.children.length) {
+      sigDeleteStatus.textContent = '삭제할 서명이 없습니다.';
+      return;
+    }
+    if (!confirm('저장된 모든 서명을 삭제할까요? 되돌릴 수 없습니다.')) return;
+    deleteAllBtn.disabled = true;
+    sigDeleteStatus.textContent = '삭제 중...';
+    try {
+      const res = await fetch(`/api/signatures?pw=${encodeURIComponent(pw)}`, { method: 'DELETE' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        sigDeleteStatus.textContent = (data && data.error) || '삭제 실패';
+        return;
+      }
+      sigDeleteStatus.textContent = `${data.deleted || 0}개 삭제됨`;
+      render([]);
+    } catch {
+      sigDeleteStatus.textContent = '오류가 발생했습니다.';
+    } finally {
+      deleteAllBtn.disabled = false;
+    }
+  });
 
   const savedPw = sessionStorage.getItem('adminPassword');
   if (savedPw) {

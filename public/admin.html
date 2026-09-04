@@ -70,7 +70,11 @@
       <div id="guestList" class="guest-list"></div>
     </div>
 
-    <h2 class="sig-title">저장된 서명</h2>
+    <div class="sig-titlebar">
+      <h2 class="sig-title">저장된 서명</h2>
+      <button id="deleteAllBtn" class="danger">전체 삭제</button>
+      <span class="bg-status" id="sigDeleteStatus"></span>
+    </div>
     <div id="sigGrid" class="sig-grid"></div>
     <div id="emptyHint" class="empty-hint" style="display:none;">아직 저장된 서명이 없습니다.</div>
   </div>
