@@ -156,6 +156,12 @@ function checkAdminPw(req) {
   return timingSafeEqual(req.query.pw || '', ADMIN_PASSWORD);
 }
 
+// 저장된 서명 조회/삭제는 관리자뿐 아니라 유효한 게스트도 할 수 있다
+// (게스트는 실시간 모니터링 화면에서 저장된 서명을 지울 수 있다).
+function checkViewerPw(req) {
+  return isValidViewer(req.query.pw || '');
+}
+
 function parseSignatureFilename(filename) {
   const m = filename.match(SIGNATURE_FILENAME_RE);
   if (!m) return { tabletId: null, timestamp: null };
@@ -165,9 +171,9 @@ function parseSignatureFilename(filename) {
   return { tabletId: parseInt(tabletId, 10), timestamp: iso };
 }
 
-// 관리자 페이지(admin.html) 전용: 저장된 서명 목록. 비밀번호(pw) 없이는 접근할 수 없다.
+// 저장된 서명 목록. 관리자 또는 유효한 게스트만 접근할 수 있다.
 app.get('/api/signatures', (req, res) => {
-  if (!checkAdminPw(req)) return res.status(401).json({ error: 'unauthorized' });
+  if (!checkViewerPw(req)) return res.status(401).json({ error: 'unauthorized' });
   const files = fs
     .readdirSync(DATA_DIR)
     .filter((f) => f.endsWith('.png'))
@@ -177,9 +183,9 @@ app.get('/api/signatures', (req, res) => {
   res.json(files.map((filename) => ({ filename, ...parseSignatureFilename(filename) })));
 });
 
-// 저장된 서명 이미지 다운로드. 이 역시 비밀번호 없이는 접근할 수 없다.
+// 저장된 서명 이미지. 관리자 또는 유효한 게스트만 접근할 수 있다(모니터에서 미리보기).
 app.get('/api/signature-file/:filename', (req, res) => {
-  if (!checkAdminPw(req)) return res.status(401).send('unauthorized');
+  if (!checkViewerPw(req)) return res.status(401).send('unauthorized');
   const { filename } = req.params;
   if (!SIGNATURE_FILENAME_RE.test(filename)) return res.status(400).send('bad filename');
   const filePath = path.join(DATA_DIR, filename);
@@ -187,9 +193,9 @@ app.get('/api/signature-file/:filename', (req, res) => {
   res.sendFile(filePath);
 });
 
-// 저장된 서명 이미지 1개 삭제. 관리자 전용. 파일명 형식이 아니면 거부해 경로 조작을 막는다.
+// 저장된 서명 이미지 1개 삭제. 관리자 또는 유효한 게스트. 파일명 형식이 아니면 거부해 경로 조작을 막는다.
 app.delete('/api/signature-file/:filename', (req, res) => {
-  if (!checkAdminPw(req)) return res.status(401).json({ error: 'unauthorized' });
+  if (!checkViewerPw(req)) return res.status(401).json({ error: 'unauthorized' });
   const { filename } = req.params;
   if (!SIGNATURE_FILENAME_RE.test(filename)) return res.status(400).json({ error: 'bad filename' });
   const filePath = path.join(DATA_DIR, filename);
@@ -201,9 +207,9 @@ app.delete('/api/signature-file/:filename', (req, res) => {
   res.json({ ok: true, filename });
 });
 
-// 저장된 서명 전체 삭제. 관리자 전용.
+// 저장된 서명 전체 삭제. 관리자 또는 유효한 게스트.
 app.delete('/api/signatures', (req, res) => {
-  if (!checkAdminPw(req)) return res.status(401).json({ error: 'unauthorized' });
+  if (!checkViewerPw(req)) return res.status(401).json({ error: 'unauthorized' });
   let deleted = 0;
   try {
     for (const f of fs.readdirSync(DATA_DIR)) {

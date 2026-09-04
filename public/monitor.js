@@ -70,6 +70,7 @@
   const GRID_GAP = 10; // style.css .grid의 gap 값과 반드시 일치시켜야 한다.
 
   let ws;
+  let viewerPw = ''; // 로그인에 사용한 비번(관리자 또는 게스트). 저장된 서명 조회/삭제에 쓴다.
   let tabletCount = 10;
   // 접속 안 된 칸에 연결 QR코드를 만들기 위한 정보 (관리자 로그인 후 채워짐).
   let hostBase = '';
@@ -509,6 +510,7 @@
   });
 
   function start(password) {
+    viewerPw = password;
     requestWakeLock();
     fetch('/api/config')
       .then((r) => r.json())
@@ -583,6 +585,123 @@
     forcedCols = parseInt(colsSelect.value, 10) || 0;
     localStorage.setItem('monCols', String(forcedCols));
     requestAnimationFrame(layoutGrid);
+  });
+
+  // ---------- 저장된 서명 관리 패널 (관리자/게스트 모두 사용) ----------
+  const savedPanel = document.getElementById('savedPanel');
+  const savedGrid = document.getElementById('savedGrid');
+  const savedEmpty = document.getElementById('savedEmpty');
+  const savedStatus = document.getElementById('savedStatus');
+  const savedDeleteAllBtn = document.getElementById('savedDeleteAllBtn');
+
+  function formatSavedTime(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return '';
+    return d.toLocaleString('ko-KR');
+  }
+
+  function renderSaved(items) {
+    savedGrid.innerHTML = '';
+    savedEmpty.style.display = items.length === 0 ? 'block' : 'none';
+    items.forEach((item) => {
+      const fileUrl = `/api/signature-file/${encodeURIComponent(item.filename)}?pw=${encodeURIComponent(viewerPw)}`;
+      const card = document.createElement('div');
+      card.className = 'sig-card';
+
+      const img = document.createElement('img');
+      img.src = fileUrl;
+      img.loading = 'lazy';
+
+      const meta = document.createElement('div');
+      meta.className = 'sig-meta';
+      const label = document.createElement('span');
+      label.textContent = item.tabletId ? `태블릿 ${item.tabletId} · ${formatSavedTime(item.timestamp)}` : item.filename;
+      const del = document.createElement('button');
+      del.className = 'danger';
+      del.textContent = '삭제';
+      del.addEventListener('click', async () => {
+        if (!confirm('이 서명을 삭제할까요? 되돌릴 수 없습니다.')) return;
+        del.disabled = true;
+        try {
+          const res = await fetch(fileUrl, { method: 'DELETE' });
+          if (!res.ok) {
+            del.disabled = false;
+            alert('삭제에 실패했습니다.');
+            return;
+          }
+          card.remove();
+          if (!savedGrid.children.length) savedEmpty.style.display = 'block';
+        } catch {
+          del.disabled = false;
+          alert('삭제 중 오류가 발생했습니다.');
+        }
+      });
+
+      meta.appendChild(label);
+      meta.appendChild(del);
+      card.appendChild(img);
+      card.appendChild(meta);
+      savedGrid.appendChild(card);
+    });
+  }
+
+  function refreshSaved() {
+    savedStatus.textContent = '불러오는 중...';
+    return fetch(`/api/signatures?pw=${encodeURIComponent(viewerPw)}`)
+      .then((r) => {
+        if (!r.ok) throw new Error('unauthorized');
+        return r.json();
+      })
+      .then((items) => {
+        savedStatus.textContent = `${items.length}개`;
+        renderSaved(items);
+      })
+      .catch(() => {
+        savedStatus.textContent = '';
+        savedGrid.innerHTML = '';
+        savedEmpty.style.display = 'block';
+        savedEmpty.textContent = '목록을 불러올 수 없습니다.';
+      });
+  }
+
+  function openSavedPanel() {
+    savedPanel.style.display = 'flex';
+    savedEmpty.textContent = '아직 저장된 서명이 없습니다.';
+    refreshSaved();
+  }
+  function closeSavedPanel() {
+    savedPanel.style.display = 'none';
+  }
+
+  document.getElementById('savedMgrBtn').addEventListener('click', openSavedPanel);
+  document.getElementById('savedCloseBtn').addEventListener('click', closeSavedPanel);
+  document.getElementById('savedRefreshBtn').addEventListener('click', refreshSaved);
+  savedPanel.addEventListener('click', (e) => {
+    if (e.target === savedPanel) closeSavedPanel();
+  });
+  savedDeleteAllBtn.addEventListener('click', async () => {
+    if (!savedGrid.children.length) {
+      savedStatus.textContent = '삭제할 서명이 없습니다.';
+      return;
+    }
+    if (!confirm('저장된 모든 서명을 삭제할까요? 되돌릴 수 없습니다.')) return;
+    savedDeleteAllBtn.disabled = true;
+    savedStatus.textContent = '삭제 중...';
+    try {
+      const res = await fetch(`/api/signatures?pw=${encodeURIComponent(viewerPw)}`, { method: 'DELETE' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        savedStatus.textContent = (data && data.error) || '삭제 실패';
+        return;
+      }
+      savedStatus.textContent = `${data.deleted || 0}개 삭제됨`;
+      renderSaved([]);
+    } catch {
+      savedStatus.textContent = '오류가 발생했습니다.';
+    } finally {
+      savedDeleteAllBtn.disabled = false;
+    }
   });
 
   const savedPw = sessionStorage.getItem('monitorPassword');
