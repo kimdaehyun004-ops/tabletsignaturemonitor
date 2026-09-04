@@ -188,6 +188,7 @@
 
     let ws;
     let reconnectDelay = 1000;
+    let reconnectTimer = null;
     let pendingPoints = [];
     let flushScheduled = false;
     let drawing = false;
@@ -264,6 +265,13 @@
     }
 
     function connect() {
+      // 예약된 재연결이 있으면 취소하고, 이미 연결(중)이면 중복 연결을 만들지 않는다.
+      if (reconnectTimer) {
+        clearTimeout(reconnectTimer);
+        reconnectTimer = null;
+      }
+      if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) return;
+
       const protocol = location.protocol === 'https:' ? 'wss' : 'ws';
       ws = new WebSocket(`${protocol}://${location.host}`);
 
@@ -299,13 +307,25 @@
 
       ws.addEventListener('close', () => {
         setStatus(false, '재연결 중...');
-        setTimeout(connect, reconnectDelay);
+        reconnectTimer = setTimeout(connect, reconnectDelay);
         reconnectDelay = Math.min(reconnectDelay * 1.5, 10000);
       });
 
       ws.addEventListener('error', () => ws.close());
     }
     connect();
+
+    // 홈 화면에 나갔다가 돌아오면(다시 화면이 보이면) 곧바로 연결 상태를 확인해
+    // 끊겨 있으면 즉시 재연결한다. 백그라운드에서는 재연결 타이머가 멈출 수 있으므로
+    // 이렇게 화면이 다시 보일 때 확실히 이어준다.
+    function ensureConnected() {
+      if (!ws || ws.readyState === WebSocket.CLOSED) connect();
+    }
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') ensureConnected();
+    });
+    window.addEventListener('pageshow', ensureConnected);
+    window.addEventListener('online', ensureConnected);
 
     function normPoint(clientX, clientY) {
       const rect = canvas.getBoundingClientRect();

@@ -406,6 +406,10 @@ function timingSafeEqual(a, b) {
 const tablets = new Map();
 // Set of monitor sockets
 const monitors = new Set();
+// 태블릿 연결이 끊겼을 때 곧바로 "미접속"으로 바꾸지 않고 잠깐 기다리기 위한 유예 타이머.
+// tabletId -> timeout. 홈 화면으로 잠깐 나갔다가 돌아오면(재접속) 취소되어 끊김이 보이지 않는다.
+const tabletOfflineTimers = new Map();
+const TABLET_OFFLINE_GRACE_MS = 60000;
 
 // 태블릿마다 실제 화면 비율이 다를 수 있어, 모니터링 화면이 그 비율을 그대로
 // 따라가야 서명이 늘어나거나 찌그러지지 않는다. 비정상적인 값은 무시한다.
@@ -495,6 +499,13 @@ wss.on('connection', (ws) => {
           ws.close();
           return;
         }
+        // 이 태블릿이 잠깐 끊겼다 다시 들어온 것이라면, 미접속 처리 예정 타이머를 취소해
+        // 모니터에 끊김이 보이지 않도록 한다.
+        const pendingTimer = tabletOfflineTimers.get(id);
+        if (pendingTimer) {
+          clearTimeout(pendingTimer);
+          tabletOfflineTimers.delete(id);
+        }
         // 같은 id로 기존 연결이 있으면 종료 (한 태블릿에 하나의 연결만 허용)
         const existing = tablets.get(id);
         if (existing && existing.ws !== ws) {
@@ -569,10 +580,21 @@ wss.on('connection', (ws) => {
 
   ws.on('close', () => {
     if (ws.role === 'tablet' && ws.tabletId != null) {
-      const current = tablets.get(ws.tabletId);
+      const id = ws.tabletId;
+      const current = tablets.get(id);
       if (current && current.ws === ws) {
-        tablets.delete(ws.tabletId);
-        broadcastStatus();
+        // 곧바로 미접속으로 바꾸지 않고 유예 시간을 둔다. 홈 화면으로 잠깐 나갔다가
+        // 그 안에 다시 접속하면(재접속) 이 타이머가 취소되어 끊김이 보이지 않는다.
+        // 유예 시간이 지나도록 재접속이 없으면(=페이지를 완전히 닫음) 그때 미접속 처리한다.
+        const timer = setTimeout(() => {
+          tabletOfflineTimers.delete(id);
+          const cur = tablets.get(id);
+          if (cur && cur.ws === ws) {
+            tablets.delete(id);
+            broadcastStatus();
+          }
+        }, TABLET_OFFLINE_GRACE_MS);
+        tabletOfflineTimers.set(id, timer);
       }
     }
     if (ws.role === 'monitor') {
@@ -581,15 +603,23 @@ wss.on('connection', (ws) => {
   });
 });
 
-// 연결 끊김 감지용 하트비트
+// 연결 끊김 감지용 하트비트.
+// 태블릿은 홈 화면으로 잠깐 나가 있으면(백그라운드) pong을 못 보낼 수 있는데,
+// 그때 강제로 끊어버리면 모니터에 "미접속"으로 보인다. 그래서 태블릿은 하트비트로
+// 종료하지 않고, 진짜로 페이지를 닫아 TCP 연결이 끊길 때만 close 이벤트로 처리한다.
+// (죽은 소켓은 아래 ping 쓰기가 실패하면서 close로 자연히 정리된다.)
 const heartbeat = setInterval(() => {
   wss.clients.forEach((ws) => {
-    if (ws.isAlive === false) {
+    if (ws.isAlive === false && ws.role !== 'tablet') {
       ws.terminate();
       return;
     }
     ws.isAlive = false;
-    ws.ping();
+    try {
+      ws.ping();
+    } catch {
+      // 이미 죽은 소켓이면 곧 close 이벤트로 정리된다.
+    }
   });
 }, 30000);
 
