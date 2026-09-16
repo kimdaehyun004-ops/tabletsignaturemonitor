@@ -6,6 +6,7 @@ const path = require('path');
 const { exec } = require('child_process');
 const express = require('express');
 const { WebSocketServer } = require('ws');
+const store = require('./store');
 
 const PORT = process.env.PORT || 3000;
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '';
@@ -52,11 +53,19 @@ try {
 } catch {
   guests = [];
 }
+// 관리자가 "닫은"(비활성화한) 코드들. 관리자 비번을 제외한 어떤 코드든 여기 있으면
+// 접속이 막힌다. 다시 "열면" 제거된다. 영구 저장소가 있으면 재시작에도 유지된다.
+let disabledCodes = new Set();
+// 접속 기록(메모리 캐시). 최신이 앞. [{ at, kind, label, event }]
+let connLog = [];
+const CONN_LOG_CAP = 500;
+const connLogThrottle = new Map(); // label+event -> 마지막 기록 시각(잦은 재접속 로그 억제)
+
 function pruneGuests() {
   const now = Date.now();
   const before = guests.length;
   guests = guests.filter((g) => g.expiresAt > now);
-  if (guests.length !== before) saveGuests();
+  if (guests.length !== before) persistGuests();
 }
 function saveGuests() {
   try {
@@ -64,6 +73,44 @@ function saveGuests() {
   } catch {
     // 디스크 저장 실패해도 메모리에는 남아있으므로 계속 동작한다.
   }
+}
+// 게스트 목록을 파일(폴백)과 영구 저장소(있으면) 양쪽에 저장한다.
+function persistGuests() {
+  saveGuests();
+  if (store.enabled) store.setJSON('guests', guests);
+}
+function persistDisabled() {
+  if (store.enabled) store.setJSON('disabled', [...disabledCodes]);
+}
+function isDisabled(code) {
+  return disabledCodes.has(code);
+}
+// 접속 기록 한 건을 남긴다. 같은 내용이 짧은 시간에 반복되면(재접속) 건너뛴다.
+function recordConn(kind, label, event) {
+  const key = label + '|' + event;
+  const now = Date.now();
+  const last = connLogThrottle.get(key) || 0;
+  if (now - last < 30000) return; // 30초 내 동일 기록은 생략
+  connLogThrottle.set(key, now);
+  const entry = { at: now, kind, label, event };
+  connLog.unshift(entry);
+  if (connLog.length > CONN_LOG_CAP) connLog.length = CONN_LOG_CAP;
+  if (store.enabled) store.pushLog(entry, CONN_LOG_CAP);
+}
+
+// 영구 저장소가 설정돼 있으면, 시작 시 게스트/닫힌 코드/접속 기록을 복원한다.
+if (store.enabled) {
+  (async () => {
+    const g = await store.getJSON('guests', null);
+    if (Array.isArray(g)) guests = g;
+    const d = await store.getJSON('disabled', null);
+    if (Array.isArray(d)) disabledCodes = new Set(d);
+    const log = await store.getLog(200);
+    if (Array.isArray(log) && log.length) connLog = log;
+    console.log('[store] 영구 저장소(Upstash) 연결됨 - 데이터 복원 완료');
+  })().catch((e) => console.error('[store] 복원 실패:', e.message));
+} else {
+  console.log('[store] 영구 저장소 미설정 - 메모리/파일로 동작 (수면 시 접속기록·닫힘상태 초기화)');
 }
 function generateGuestCode() {
   // 입력하기 쉬운 6자리 숫자 코드. 관리자 비번/기존 게스트/영구 코드와 겹치지 않게 한다.
@@ -73,19 +120,19 @@ function generateGuestCode() {
   }
   return String(Date.now()).slice(-6);
 }
-// 모니터링을 볼 수 있는 비밀번호인지 (관리자 또는 영구/유효한 게스트).
+// 모니터링을 볼 수 있는 비밀번호인지 (관리자 또는 영구/유효한 게스트). "닫힌" 코드는 제외.
 function isValidViewer(password) {
   if (timingSafeEqual(password || '', ADMIN_PASSWORD)) return true;
-  if (permanentGuests.some((g) => timingSafeEqual(password || '', g.code))) return true;
+  if (permanentGuests.some((g) => !isDisabled(g.code) && timingSafeEqual(password || '', g.code))) return true;
   pruneGuests();
-  return guests.some((g) => timingSafeEqual(password || '', g.code));
+  return guests.some((g) => !isDisabled(g.code) && timingSafeEqual(password || '', g.code));
 }
-// 배경 이미지를 바꿀 수 있는 비밀번호인지 (관리자 또는 "배경 변경 허용" 영구/게스트).
+// 배경 이미지를 바꿀 수 있는 비밀번호인지 (관리자 또는 "배경 변경 허용" 영구/게스트). "닫힌" 코드는 제외.
 function isBackgroundEditor(password) {
   if (timingSafeEqual(password || '', ADMIN_PASSWORD)) return true;
-  if (permanentGuests.some((g) => g.canBackground && timingSafeEqual(password || '', g.code))) return true;
+  if (permanentGuests.some((g) => g.canBackground && !isDisabled(g.code) && timingSafeEqual(password || '', g.code))) return true;
   pruneGuests();
-  return guests.some((g) => g.canBackground && timingSafeEqual(password || '', g.code));
+  return guests.some((g) => g.canBackground && !isDisabled(g.code) && timingSafeEqual(password || '', g.code));
 }
 
 // 태블릿 서명 화면에 깔리는 배경 이미지(브랜딩 프레임). 태블릿마다 서로 다른
@@ -348,9 +395,10 @@ app.get('/api/guests', (req, res) => {
     permanent: true,
     remainingMs: null,
     canBackground: !!g.canBackground,
+    disabled: isDisabled(g.code),
   }));
   const dynamicList = guests
-    .map((g) => ({ code: g.code, label: g.label || '', expiresAt: g.expiresAt, remainingMs: g.expiresAt - now, canBackground: !!g.canBackground, permanent: false }))
+    .map((g) => ({ code: g.code, label: g.label || '', expiresAt: g.expiresAt, remainingMs: g.expiresAt - now, canBackground: !!g.canBackground, permanent: false, disabled: isDisabled(g.code) }))
     .sort((a, b) => a.expiresAt - b.expiresAt);
   res.json({
     max: MAX_GUESTS,
@@ -388,7 +436,7 @@ app.post('/api/guests', (req, res) => {
       existing.label = label;
       existing.expiresAt = expiresAt;
       existing.canBackground = canBackground;
-      saveGuests();
+      persistGuests();
       return res.json({ ok: true, code: requestedCode, label, expiresAt, canBackground, updated: true });
     }
   }
@@ -399,7 +447,7 @@ app.post('/api/guests', (req, res) => {
   }
   const code = requestedCode || generateGuestCode();
   guests.push({ code, label, expiresAt, canBackground });
-  saveGuests();
+  persistGuests();
   res.json({ ok: true, code, label, expiresAt, canBackground });
 });
 
@@ -410,8 +458,37 @@ app.delete('/api/guests', (req, res) => {
   const code = String(req.query.code || '');
   const before = guests.length;
   guests = guests.filter((g) => g.code !== code);
-  if (guests.length !== before) saveGuests();
+  if (guests.length !== before) persistGuests();
+  // 닫힘 상태도 정리한다.
+  if (disabledCodes.delete(code)) persistDisabled();
   res.json({ ok: true });
+});
+
+// 코드 열기/닫기(임시 비활성화). 관리자 전용. body: { code, disabled }
+// 삭제하지 않고 잠시 접속만 막았다가 다시 열 수 있다. 영구 코드도 닫을 수 있다.
+app.options('/api/guest-toggle', (req, res) => {
+  guestCors(res);
+  res.status(204).end();
+});
+app.post('/api/guest-toggle', (req, res) => {
+  guestCors(res);
+  if (!checkAdminPw(req)) return res.status(401).json({ error: 'unauthorized' });
+  const code = String((req.body && req.body.code) || '');
+  const disabled = !!(req.body && req.body.disabled);
+  if (!code) return res.status(400).json({ error: '코드가 없습니다.' });
+  if (disabled) disabledCodes.add(code);
+  else disabledCodes.delete(code);
+  persistDisabled();
+  // 닫은 코드로 지금 보고 있는 모니터가 있다면, 다음 인증부터 막힌다(연결 자체는 유지).
+  res.json({ ok: true, code, disabled });
+});
+
+// 접속 기록 조회. 관리자 전용. (다른 버전에서도 볼 수 있게 CORS 허용)
+app.get('/api/conn-log', (req, res) => {
+  guestCors(res);
+  if (!checkAdminPw(req)) return res.status(401).json({ error: 'unauthorized' });
+  const limit = Math.min(parseInt(req.query.limit, 10) || 100, CONN_LOG_CAP);
+  res.json({ persistent: store.enabled, instanceName: INSTANCE_NAME, log: connLog.slice(0, limit) });
 });
 
 const server = app.listen(PORT, () => {
@@ -513,6 +590,10 @@ wss.on('connection', (ws) => {
         }
         ws.role = 'monitor';
         monitors.add(ws);
+        // 관리자가 아닌(게스트) 접속만 기록한다. 어떤 게스트 코드가 접속했는지 알 수 있게.
+        if (!timingSafeEqual(msg.password || '', ADMIN_PASSWORD)) {
+          recordConn('guest', `게스트 ${msg.password || ''}`, '접속');
+        }
         // 이 비번으로 배경까지 편집할 수 있는지 알려줘, 모니터에 "배경 편집" 버튼을 띄울지 결정하게 한다.
         ws.send(JSON.stringify({ type: 'auth_ok', canBackground: isBackgroundEditor(msg.password || '') }));
         ws.send(JSON.stringify({ type: 'status', tablets: tabletStatusList() }));
@@ -550,6 +631,7 @@ wss.on('connection', (ws) => {
         // 접속 직후 이 태블릿의 배경 이미지 상태를 알려줘 바로 표시하게 한다.
         ws.send(JSON.stringify({ type: 'background', hasBackground: hasBg(id), version: bgVersion(id) }));
         broadcastStatus();
+        recordConn('tablet', `태블릿 ${id}`, '접속');
         return;
       }
       return;
@@ -593,6 +675,7 @@ wss.on('connection', (ws) => {
           }
           tablets.delete(target);
           broadcastStatus();
+          recordConn('tablet', `태블릿 ${target}`, '강제 끊김');
         }
       }
       return;
@@ -651,6 +734,7 @@ wss.on('connection', (ws) => {
           if (cur && cur.ws === ws) {
             tablets.delete(id);
             broadcastStatus();
+            recordConn('tablet', `태블릿 ${id}`, '끊김');
           }
         }, TABLET_OFFLINE_GRACE_MS);
         tabletOfflineTimers.set(id, timer);

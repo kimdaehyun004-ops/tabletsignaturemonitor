@@ -252,13 +252,34 @@
       code.className = 'guest-code';
       code.textContent = g.code;
 
+      if (g.disabled) row.classList.add('guest-disabled');
+
       const meta = document.createElement('span');
       meta.className = 'guest-meta';
       const remainText = g.permanent ? '영구(항상 유지)' : formatRemaining(g.remainingMs);
-      meta.textContent = (g.label ? g.label + ' · ' : '') + remainText + (g.canBackground ? ' · 배경변경 가능' : '');
+      meta.textContent =
+        (g.label ? g.label + ' · ' : '') + remainText + (g.canBackground ? ' · 배경변경 가능' : '') + (g.disabled ? ' · 닫힘(접속 차단)' : '');
 
       row.appendChild(code);
       row.appendChild(meta);
+
+      // 열기/닫기: 삭제하지 않고 접속만 잠시 막았다가 다시 열 수 있다. 영구 코드도 가능.
+      const toggle = document.createElement('button');
+      toggle.className = g.disabled ? 'open' : 'warn';
+      toggle.textContent = g.disabled ? '열기' : '닫기';
+      toggle.addEventListener('click', async () => {
+        await Promise.all(
+          versionUrls.map((url) =>
+            fetch(`${url}/api/guest-toggle?pw=${encodeURIComponent(pw)}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ code: g.code, disabled: !g.disabled }),
+            }).catch(() => {})
+          )
+        );
+        refreshGuests();
+      });
+      row.appendChild(toggle);
 
       if (g.permanent) {
         // 영구 코드(환경변수)는 UI에서 삭제할 수 없다. 배지만 표시한다.
@@ -353,10 +374,61 @@
     refreshGuests();
   });
 
+  // ---------- 접속 기록 ----------
+  const connLogEl = document.getElementById('connLog');
+  const connLogStatus = document.getElementById('connLogStatus');
+
+  function fmtLogTime(at) {
+    const d = new Date(at);
+    if (isNaN(d.getTime())) return '';
+    return d.toLocaleString('ko-KR');
+  }
+  function renderConnLog(data) {
+    connLogStatus.textContent = data.persistent ? '영구 저장 중' : '임시(메모리) - 수면 시 초기화';
+    connLogEl.innerHTML = '';
+    if (!data.log || !data.log.length) {
+      const em = document.createElement('div');
+      em.className = 'empty-hint';
+      em.textContent = '아직 접속 기록이 없습니다.';
+      connLogEl.appendChild(em);
+      return;
+    }
+    data.log.forEach((e) => {
+      const row = document.createElement('div');
+      row.className = 'conn-log-row';
+      const t = document.createElement('span');
+      t.className = 'conn-log-time';
+      t.textContent = fmtLogTime(e.at);
+      const l = document.createElement('span');
+      l.className = 'conn-log-label';
+      l.textContent = e.label;
+      const ev = document.createElement('span');
+      ev.className = 'conn-log-event ' + (e.event.indexOf('끊') >= 0 ? 'ev-off' : 'ev-on');
+      ev.textContent = e.event;
+      row.appendChild(t);
+      row.appendChild(l);
+      row.appendChild(ev);
+      connLogEl.appendChild(row);
+    });
+  }
+  function refreshConnLog() {
+    fetch(`/api/conn-log?pw=${encodeURIComponent(pw)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data) renderConnLog(data);
+      })
+      .catch(() => {});
+  }
+  document.getElementById('connLogRefresh').addEventListener('click', refreshConnLog);
+
   // 남은 시간 표시를 위해 1분마다 갱신.
   setInterval(() => {
     if (document.getElementById('adminPage').style.display !== 'none') refreshGuests();
   }, 60000);
+  // 접속 기록은 10초마다 자동 갱신.
+  setInterval(() => {
+    if (document.getElementById('adminPage').style.display !== 'none') refreshConnLog();
+  }, 10000);
 
   function formatTime(iso) {
     if (!iso) return '';
@@ -434,6 +506,7 @@
         render(items);
         refreshBgSlots();
         refreshGuests();
+        refreshConnLog();
       })
       .catch(() => {
         loginError.textContent = '비밀번호가 올바르지 않습니다.';
