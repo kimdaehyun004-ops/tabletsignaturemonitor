@@ -311,26 +311,32 @@ html, body {
 }
 .saved-badge.show { opacity: 1; }
 .cell.flash { box-shadow: 0 0 0 3px #16a34a inset; transition: box-shadow 0.3s; }
-/* 현재 서명 원격 지우기 버튼: 평소엔 숨겼다가 칸에 마우스를 올리면 나타난다
+/* 칸 관리 버튼(지우기/접속 끊기): 평소엔 숨겼다가 칸에 마우스를 올리면 나타난다
    (화면 캡처 시에는 보이지 않는다). */
-.cell-clear {
+.cell-actions {
   position: absolute;
   top: 6px;
   right: 6px;
   z-index: 5;
-  padding: 3px 9px;
-  font-size: 12px;
-  font-family: inherit;
-  border: 1px solid #e5b4b4;
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.92);
-  color: #dc2626;
-  cursor: pointer;
+  display: flex;
+  gap: 6px;
   opacity: 0;
   transition: opacity 0.15s;
 }
-.cell:hover .cell-clear { opacity: 1; }
-.cell-clear:hover { background: #fee2e2; }
+.cell:hover .cell-actions { opacity: 1; }
+.cell-btn {
+  padding: 3px 9px;
+  font-size: 12px;
+  font-family: inherit;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #334155;
+  cursor: pointer;
+}
+.cell-btn:hover { background: #eef2f7; }
+.cell-btn.danger { border-color: #e5b4b4; color: #dc2626; }
+.cell-btn.danger:hover { background: #fee2e2; }
 
 /* 하단 QR 스트립 (미접속 태블릿 연결용) */
 .qr-strip {
@@ -389,6 +395,37 @@ html, body {
   cursor: pointer;
 }
 .login-error { color: #f87171; font-size: 14px; min-height: 18px; }
+
+/* 마우스로 숫자를 눌러 비밀번호를 입력하는 온스크린 키패드 */
+.keypad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 8px;
+}
+.keypad .keypad-btn {
+  width: 100%;
+  padding: 16px 0;
+  font-size: 20px;
+  font-weight: 600;
+  background: #222831;
+  color: #eaeef3;
+  border: 1px solid #39414c;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.keypad .keypad-btn:hover { background: #2b323c; }
+.keypad .keypad-btn:active { background: #384150; }
+.keypad .keypad-btn.key-clear { color: #f5b74f; }
+.keypad .keypad-btn.key-back { color: #f5b74f; }
+/* "입장" 키는 키패드 아래에 가로로 꽉 차게 크게 표시한다. */
+.keypad .keypad-btn.key-enter {
+  grid-column: 1 / -1;
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #fff;
+}
+.keypad .keypad-btn.key-enter:hover { background: #1d4ed8; }
 
 .main-area { flex: 1; display: flex; min-height: 0; }
 
@@ -578,6 +615,15 @@ html, body {
   font-family: monospace;
 }
 .guest-meta { flex: 1; font-size: 13px; color: #9aa4b2; }
+.guest-permanent-badge {
+  padding: 5px 10px;
+  border-radius: 6px;
+  border: 1px solid #3a4c2a;
+  background: #1a1f24;
+  color: #86c34f;
+  font-size: 12px;
+  font-weight: 700;
+}
 .guest-row button.danger {
   padding: 6px 12px;
   border-radius: 6px;

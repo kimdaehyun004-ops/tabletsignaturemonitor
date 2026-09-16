@@ -15,6 +15,22 @@ const TABLET_COUNT = parseInt(process.env.TABLET_COUNT || '10', 10);
 // 구분할 수 있도록 표시하는 이름 (예: "V1"). 비워두면 아무것도 표시하지 않는다.
 const INSTANCE_NAME = process.env.INSTANCE_NAME || '';
 
+// 절대 사라지면 안 되는 "영구 게스트 코드".
+// Render 무료 서버는 잠들었다 깨거나(수면 모드) 재배포되면 디스크가 초기화되어
+// UI로 만든 게스트 코드가 사라진다. 그래서 항상 유지돼야 하는 코드는 환경변수로 관리한다.
+// 형식: "코드" 또는 "코드:bg"(배경 변경 허용)를 쉼표로 구분.
+//   예) GUEST_CODES=246810,135790:bg
+// 이 코드들은 만료되지 않고, UI에서 삭제해도 사라지지 않는다.
+const permanentGuests = String(process.env.GUEST_CODES || '')
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean)
+  .map((entry) => {
+    const [rawCode, flag] = entry.split(':');
+    return { code: (rawCode || '').trim(), canBackground: (flag || '').trim().toLowerCase() === 'bg', permanent: true };
+  })
+  .filter((g) => /^\d{4,8}$/.test(g.code));
+
 if (!ADMIN_PASSWORD || !TABLET_TOKEN) {
   console.error('ADMIN_PASSWORD / TABLET_TOKEN 이 설정되지 않았습니다. .env 파일을 확인하세요 (.env.example 참고).');
   process.exit(1);
@@ -50,22 +66,24 @@ function saveGuests() {
   }
 }
 function generateGuestCode() {
-  // 입력하기 쉬운 6자리 숫자 코드. 관리자 비번/기존 게스트와 겹치지 않게 한다.
+  // 입력하기 쉬운 6자리 숫자 코드. 관리자 비번/기존 게스트/영구 코드와 겹치지 않게 한다.
   for (let i = 0; i < 50; i++) {
     const code = String(crypto.randomInt(100000, 1000000));
-    if (code !== ADMIN_PASSWORD && !guests.some((g) => g.code === code)) return code;
+    if (code !== ADMIN_PASSWORD && !guests.some((g) => g.code === code) && !permanentGuests.some((g) => g.code === code)) return code;
   }
   return String(Date.now()).slice(-6);
 }
-// 모니터링을 볼 수 있는 비밀번호인지 (관리자 또는 유효한 게스트).
+// 모니터링을 볼 수 있는 비밀번호인지 (관리자 또는 영구/유효한 게스트).
 function isValidViewer(password) {
   if (timingSafeEqual(password || '', ADMIN_PASSWORD)) return true;
+  if (permanentGuests.some((g) => timingSafeEqual(password || '', g.code))) return true;
   pruneGuests();
   return guests.some((g) => timingSafeEqual(password || '', g.code));
 }
-// 배경 이미지를 바꿀 수 있는 비밀번호인지 (관리자 또는 "배경 변경 허용" 게스트).
+// 배경 이미지를 바꿀 수 있는 비밀번호인지 (관리자 또는 "배경 변경 허용" 영구/게스트).
 function isBackgroundEditor(password) {
   if (timingSafeEqual(password || '', ADMIN_PASSWORD)) return true;
+  if (permanentGuests.some((g) => g.canBackground && timingSafeEqual(password || '', g.code))) return true;
   pruneGuests();
   return guests.some((g) => g.canBackground && timingSafeEqual(password || '', g.code));
 }
@@ -317,17 +335,26 @@ app.options('/api/guests', (req, res) => {
   res.status(204).end();
 });
 
-// 게스트 비밀번호 목록. 관리자 전용.
+// 게스트 비밀번호 목록. 관리자 전용. 영구 코드(환경변수)도 함께 내려준다.
 app.get('/api/guests', (req, res) => {
   guestCors(res);
   if (!checkAdminPw(req)) return res.status(401).json({ error: 'unauthorized' });
   pruneGuests();
   const now = Date.now();
+  // 영구 코드: 만료·삭제되지 않으며 항상 유지된다(수면 모드/재배포에도 살아있음).
+  const permanentList = permanentGuests.map((g) => ({
+    code: g.code,
+    label: '영구 코드',
+    permanent: true,
+    remainingMs: null,
+    canBackground: !!g.canBackground,
+  }));
+  const dynamicList = guests
+    .map((g) => ({ code: g.code, label: g.label || '', expiresAt: g.expiresAt, remainingMs: g.expiresAt - now, canBackground: !!g.canBackground, permanent: false }))
+    .sort((a, b) => a.expiresAt - b.expiresAt);
   res.json({
     max: MAX_GUESTS,
-    guests: guests
-      .map((g) => ({ code: g.code, label: g.label || '', expiresAt: g.expiresAt, remainingMs: g.expiresAt - now, canBackground: !!g.canBackground }))
-      .sort((a, b) => a.expiresAt - b.expiresAt),
+    guests: [...permanentList, ...dynamicList],
   });
 });
 
@@ -345,6 +372,11 @@ app.post('/api/guests', (req, res) => {
   const canBackground = !!(req.body && req.body.canBackground);
   const expiresAt = Date.now() + hours * 3600 * 1000;
   const requestedCode = String((req.body && req.body.code) || '').trim();
+
+  // 영구 코드(환경변수)와 겹치는 코드는 UI에서 만들 수 없다.
+  if (permanentGuests.some((g) => g.code === requestedCode)) {
+    return res.status(400).json({ error: '이미 고정(영구) 코드로 사용 중입니다.' });
+  }
 
   // 지정된 코드가 이미 있으면(다른 버전에서 같은 코드를 다시 심는 경우) 내용만 갱신.
   if (requestedCode) {
@@ -535,6 +567,33 @@ wss.on('connection', (ws) => {
         }
         // 모든 모니터의 해당 칸도 즉시 비운다.
         broadcastToMonitors({ type: 'clear', id: target });
+      }
+      return;
+    }
+
+    // 모니터(관리자/게스트)가 특정 태블릿의 접속을 강제로 끊는다.
+    // 태블릿에게 "kicked"를 알려 자동 재연결하지 않게 하고, 즉시 미접속으로 처리한다.
+    if (msg.type === 'kick' && ws.role === 'monitor') {
+      const target = parseInt(msg.id, 10);
+      if (Number.isInteger(target) && target >= 1 && target <= TABLET_COUNT) {
+        const pending = tabletOfflineTimers.get(target);
+        if (pending) {
+          clearTimeout(pending);
+          tabletOfflineTimers.delete(target);
+        }
+        const t = tablets.get(target);
+        if (t) {
+          if (t.ws.readyState === t.ws.OPEN) {
+            t.ws.send(JSON.stringify({ type: 'kicked' }));
+          }
+          try {
+            t.ws.close();
+          } catch {
+            // 이미 닫혔으면 무시
+          }
+          tablets.delete(target);
+          broadcastStatus();
+        }
       }
       return;
     }

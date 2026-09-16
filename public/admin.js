@@ -254,28 +254,39 @@
 
       const meta = document.createElement('span');
       meta.className = 'guest-meta';
-      meta.textContent = (g.label ? g.label + ' · ' : '') + formatRemaining(g.remainingMs) + (g.canBackground ? ' · 배경변경 가능' : '');
-
-      const del = document.createElement('button');
-      del.className = 'danger';
-      del.textContent = '삭제';
-      del.addEventListener('click', async () => {
-        // 이 버전 + 등록된 다른 버전 모두에서 삭제(같은 코드가 심겨 있을 수 있으므로).
-        await Promise.all(
-          versionUrls.map((url) =>
-            fetch(`${url}/api/guests?code=${encodeURIComponent(g.code)}&pw=${encodeURIComponent(pw)}`, { method: 'DELETE' }).catch(() => {})
-          )
-        );
-        refreshGuests();
-      });
+      const remainText = g.permanent ? '영구(항상 유지)' : formatRemaining(g.remainingMs);
+      meta.textContent = (g.label ? g.label + ' · ' : '') + remainText + (g.canBackground ? ' · 배경변경 가능' : '');
 
       row.appendChild(code);
       row.appendChild(meta);
-      row.appendChild(del);
+
+      if (g.permanent) {
+        // 영구 코드(환경변수)는 UI에서 삭제할 수 없다. 배지만 표시한다.
+        const badge = document.createElement('span');
+        badge.className = 'guest-permanent-badge';
+        badge.textContent = '고정';
+        row.appendChild(badge);
+      } else {
+        const del = document.createElement('button');
+        del.className = 'danger';
+        del.textContent = '삭제';
+        del.addEventListener('click', async () => {
+          // 이 버전 + 등록된 다른 버전 모두에서 삭제(같은 코드가 심겨 있을 수 있으므로).
+          await Promise.all(
+            versionUrls.map((url) =>
+              fetch(`${url}/api/guests?code=${encodeURIComponent(g.code)}&pw=${encodeURIComponent(pw)}`, { method: 'DELETE' }).catch(() => {})
+            )
+          );
+          refreshGuests();
+        });
+        row.appendChild(del);
+      }
       guestList.appendChild(row);
     });
-    guestCreateBtn.disabled = data.guests.length >= data.max;
-    if (data.guests.length >= data.max) {
+    // 발급 개수 제한은 UI에서 만드는(임시) 게스트에만 적용된다. 영구 코드는 제외하고 센다.
+    const dynamicCount = data.guests.filter((g) => !g.permanent).length;
+    guestCreateBtn.disabled = dynamicCount >= data.max;
+    if (dynamicCount >= data.max) {
       guestStatus.textContent = `최대 ${data.max}개까지 발급됨. 삭제 후 발급하세요.`;
     }
   }

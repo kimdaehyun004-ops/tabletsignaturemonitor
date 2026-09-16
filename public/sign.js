@@ -189,6 +189,7 @@
     let ws;
     let reconnectDelay = 1000;
     let reconnectTimer = null;
+    let kicked = false; // 관리자가 연결을 끊으면 true. 자동 재연결을 멈춘다.
     let pendingPoints = [];
     let flushScheduled = false;
     let drawing = false;
@@ -302,10 +303,19 @@
             toast.classList.remove('show');
             toast.textContent = '저장되었습니다';
           }, 1200);
+        } else if (msg.type === 'kicked') {
+          // 관리자가 이 태블릿의 접속을 끊었다. 자동 재연결을 멈추고 안내를 표시한다.
+          kicked = true;
+          setStatus(false, '관리자에 의해 연결이 종료됨');
         }
       });
 
       ws.addEventListener('close', () => {
+        if (kicked) {
+          // 관리자가 끊은 경우에는 다시 연결하지 않는다.
+          setStatus(false, '관리자에 의해 연결이 종료됨');
+          return;
+        }
         setStatus(false, '재연결 중...');
         reconnectTimer = setTimeout(connect, reconnectDelay);
         reconnectDelay = Math.min(reconnectDelay * 1.5, 10000);
@@ -319,6 +329,7 @@
     // 끊겨 있으면 즉시 재연결한다. 백그라운드에서는 재연결 타이머가 멈출 수 있으므로
     // 이렇게 화면이 다시 보일 때 확실히 이어준다.
     function ensureConnected() {
+      if (kicked) return;
       if (!ws || ws.readyState === WebSocket.CLOSED) connect();
     }
     document.addEventListener('visibilitychange', () => {

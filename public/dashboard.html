@@ -12,6 +12,7 @@
     <input id="passwordInput" type="password" placeholder="관리자 비밀번호" />
     <button id="loginBtn">입장</button>
     <div class="login-error" id="loginError"></div>
+    <div class="keypad" data-keypad-target="#passwordInput" data-keypad-submit="#loginBtn"></div>
   </div>
 
   <div id="dashPage" class="admin-page" style="display:none;">
@@ -33,6 +34,7 @@
     <div id="cards" class="dash-grid"></div>
   </div>
 
+  <script src="keypad.js"></script>
   <script src="dashboard.js"></script>
 </body>
 </html>

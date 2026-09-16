@@ -102,23 +102,41 @@
       label.appendChild(nameSpan);
       label.appendChild(savedBadge);
 
-      // 이 태블릿의 "현재 서명"을 원격으로 지우는 버튼 (마우스를 올리면 나타난다).
+      // 칸 관리 버튼들 (마우스를 올리면 나타난다): 현재 서명 지우기 / 접속 끊기.
+      const actions = document.createElement('div');
+      actions.className = 'cell-actions';
+      actions.addEventListener('pointerdown', (e) => e.stopPropagation());
+
       const clearBtn = document.createElement('button');
-      clearBtn.className = 'cell-clear';
+      clearBtn.className = 'cell-btn';
       clearBtn.type = 'button';
       clearBtn.textContent = '지우기';
       clearBtn.title = `태블릿 ${id}의 현재 서명 지우기`;
       clearBtn.draggable = false;
-      clearBtn.addEventListener('pointerdown', (e) => e.stopPropagation());
       clearBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         if (!confirm(`태블릿 ${id}의 현재 서명을 지울까요?`)) return;
         sendRemoteClear(id);
       });
 
+      const kickBtn = document.createElement('button');
+      kickBtn.className = 'cell-btn danger';
+      kickBtn.type = 'button';
+      kickBtn.textContent = '접속 끊기';
+      kickBtn.title = `태블릿 ${id}의 접속을 끊습니다`;
+      kickBtn.draggable = false;
+      kickBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (!confirm(`태블릿 ${id}의 접속을 끊을까요?\n(태블릿에서 다시 접속하면 연결됩니다.)`)) return;
+        sendKick(id);
+      });
+
+      actions.appendChild(clearBtn);
+      actions.appendChild(kickBtn);
+
       cell.appendChild(canvas);
       cell.appendChild(label);
-      cell.appendChild(clearBtn);
+      cell.appendChild(actions);
       grid.appendChild(cell);
 
       // 마우스로 드래그해 위치(순서)를 바꿀 수 있게 한다.
@@ -461,6 +479,13 @@
   function sendRemoteClear(id) {
     if (ws && ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify({ type: 'remote_clear', id }));
+    }
+  }
+
+  // 모니터에서 특정 태블릿의 접속을 강제로 끊는다.
+  function sendKick(id) {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: 'kick', id }));
     }
   }
 
