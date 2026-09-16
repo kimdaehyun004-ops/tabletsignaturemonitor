@@ -418,14 +418,6 @@ html, body {
 .keypad .keypad-btn:active { background: #384150; }
 .keypad .keypad-btn.key-clear { color: #f5b74f; }
 .keypad .keypad-btn.key-back { color: #f5b74f; }
-/* "입장" 키는 키패드 아래에 가로로 꽉 차게 크게 표시한다. */
-.keypad .keypad-btn.key-enter {
-  grid-column: 1 / -1;
-  background: #2563eb;
-  border-color: #2563eb;
-  color: #fff;
-}
-.keypad .keypad-btn.key-enter:hover { background: #1d4ed8; }
 
 .main-area { flex: 1; display: flex; min-height: 0; }
 

@@ -6,8 +6,6 @@
   function build(container) {
     const input = document.querySelector(container.getAttribute('data-keypad-target'));
     if (!input) return;
-    const submit = container.getAttribute('data-keypad-submit');
-    const submitEl = submit ? document.querySelector(submit) : null;
 
     const keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'C', '0', '←'];
     keys.forEach((k) => {
@@ -25,16 +23,6 @@
       });
       container.appendChild(btn);
     });
-
-    // 키패드 아래 큰 "입장" 버튼(선택): 마우스만으로 바로 로그인할 수 있게 한다.
-    if (submitEl) {
-      const enter = document.createElement('button');
-      enter.type = 'button';
-      enter.className = 'keypad-btn key-enter';
-      enter.textContent = '입장';
-      enter.addEventListener('click', () => submitEl.click());
-      container.appendChild(enter);
-    }
   }
 
   document.querySelectorAll('.keypad').forEach(build);
