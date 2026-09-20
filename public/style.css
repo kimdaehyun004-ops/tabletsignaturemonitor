@@ -23,13 +23,21 @@ html, body {
   -webkit-touch-callout: none;
   touch-action: none;
 }
-.pen-width-label { font-size: 13px; color: #333; display: inline-flex; align-items: center; gap: 4px; }
-.pen-width-label select {
-  padding: 5px 8px;
+.pen-width-label { font-size: 13px; color: #333; display: inline-flex; align-items: center; gap: 6px; }
+.pen-width-label input[type="range"] {
+  width: 140px;
+  height: 26px;
+  cursor: pointer;
+  accent-color: #2563eb;
+}
+.pen-width-value {
+  min-width: 34px;
+  text-align: center;
+  font-weight: 700;
+  color: #111;
+  background: #eef2f7;
   border-radius: 6px;
-  border: 1px solid #ccc;
-  background: #fff;
-  font-size: 13px;
+  padding: 2px 6px;
 }
 .sign-topbar {
   display: flex;

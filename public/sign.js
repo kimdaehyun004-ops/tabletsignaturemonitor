@@ -37,7 +37,16 @@
 
   // 굵기를 일정하게 유지해 깔끔한 펜 선으로 그린다. 값은 사용자가 고를 수 있고
   // 브라우저에 저장되어 유지된다.
-  let PEN_WIDTH = parseFloat(localStorage.getItem('penWidth') || '2.8') || 2.8;
+  // 펜 굵기(px). 슬라이더로 1~40까지 미세하게 조절할 수 있고 브라우저에 저장된다.
+  // 기본값을 넉넉히 굵게(6) 둔다. 최소/최대 범위 안으로 보정한다.
+  const PEN_MIN = 1;
+  const PEN_MAX = 40;
+  function clampPen(v) {
+    v = parseFloat(v);
+    if (!Number.isFinite(v)) return 6;
+    return Math.min(PEN_MAX, Math.max(PEN_MIN, v));
+  }
+  let PEN_WIDTH = clampPen(localStorage.getItem('penWidth') || '6');
   function createWidthTracker() {
     return {
       reset() {},
@@ -155,11 +164,17 @@
     });
     document.addEventListener('fullscreenchange', updateFullscreenBtn);
 
-    // 펜 굵기 선택 (얇게/보통/굵게/매우 굵게). 선택값은 브라우저에 저장된다.
-    const penWidthSelect = document.getElementById('penWidthSelect');
-    penWidthSelect.value = String(PEN_WIDTH);
-    penWidthSelect.addEventListener('change', () => {
-      PEN_WIDTH = parseFloat(penWidthSelect.value) || 2.8;
+    // 펜 굵기 슬라이더 (1~40, 0.5 단위로 미세 조절). 값은 브라우저에 저장된다.
+    const penWidthRange = document.getElementById('penWidthRange');
+    const penWidthValue = document.getElementById('penWidthValue');
+    function showPenWidth() {
+      penWidthRange.value = String(PEN_WIDTH);
+      penWidthValue.textContent = PEN_WIDTH.toFixed(1);
+    }
+    showPenWidth();
+    penWidthRange.addEventListener('input', () => {
+      PEN_WIDTH = clampPen(penWidthRange.value);
+      penWidthValue.textContent = PEN_WIDTH.toFixed(1);
       localStorage.setItem('penWidth', String(PEN_WIDTH));
     });
 
