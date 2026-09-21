@@ -310,6 +310,7 @@
           // 모니터(관리자/게스트)가 원격으로 이 태블릿 화면을 지웠다.
           drawing = false;
           activePointerId = null;
+          savedAwaitingClear = false;
           strokeHistory = [];
           ctx.clearRect(0, 0, canvas.width, canvas.height);
           toast.textContent = '화면이 초기화되었습니다';
@@ -386,9 +387,25 @@
     // 서명 중 손바닥이나 두 번째 손가락이 화면에 닿아도 흔들리지 않도록,
     // 먼저 닿은 손가락(pointerId) 하나만 인식하고 나머지는 무시한다.
     let activePointerId = null;
+    // 저장 후에는 서명을 화면에 그대로 남겨둔다(사라지지 않음). 다음 사람이
+    // 새로 그리기 시작하면 그때 자동으로 지워서 깨끗한 화면에서 시작하게 한다.
+    let savedAwaitingClear = false;
+
+    function clearSignature() {
+      strokeHistory = [];
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'clear' }));
+      }
+    }
 
     canvas.addEventListener('pointerdown', (e) => {
       if (activePointerId !== null) return; // 이미 다른 손가락으로 그리는 중
+      // 저장된 서명이 남아있는 상태에서 새로 그리기 시작하면, 먼저 지우고 시작한다.
+      if (savedAwaitingClear) {
+        savedAwaitingClear = false;
+        clearSignature();
+      }
       activePointerId = e.pointerId;
       drawing = true;
       try {
@@ -424,11 +441,8 @@
     canvas.addEventListener('pointercancel', endStroke);
 
     document.getElementById('clearBtn').addEventListener('click', () => {
-      strokeHistory = [];
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: 'clear' }));
-      }
+      savedAwaitingClear = false;
+      clearSignature();
     });
 
     document.getElementById('saveBtn').addEventListener('click', () => {
@@ -438,13 +452,9 @@
       }
       toast.classList.add('show');
       setTimeout(() => toast.classList.remove('show'), 1500);
-      setTimeout(() => {
-        strokeHistory = [];
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        if (ws && ws.readyState === WebSocket.OPEN) {
-          ws.send(JSON.stringify({ type: 'clear' }));
-        }
-      }, 600);
+      // 저장해도 서명은 화면에 그대로 유지한다. 다음 사람이 새로 그리기 시작하거나
+      // "지우기"를 누르면 그때 지워진다.
+      savedAwaitingClear = true;
     });
   }
 })();
