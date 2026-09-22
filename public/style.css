@@ -911,3 +911,10 @@ html, body {
   padding: 8px 12px; border-radius: 8px; border: 1px solid #555;
   background: rgba(0,0,0,0.5); color: #fff; cursor: pointer; font-size: 13px;
 }
+
+/* vedit: 고정 화면비(해상도) 무대 중앙 정렬 + 툴바 입력요소 */
+.editor-stagewrap.fixed-res { align-items: center; justify-content: center; }
+.editor-toolbar select, .editor-toolbar input[type="text"] {
+  padding: 6px 8px; border-radius: 6px; border: 1px solid #39414c;
+  background: #1a1f24; color: #cbd5e1; font-size: 13px;
+}

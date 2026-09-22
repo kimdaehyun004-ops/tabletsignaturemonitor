@@ -45,6 +45,19 @@
       </span>
 
       <span class="tb-group">
+        <span class="tb-label">화면비</span>
+        <select id="resSelect">
+          <option value="0">자유(채우기)</option>
+          <option value="1.77778">16:9 (1920×1080)</option>
+          <option value="1.33333">4:3</option>
+          <option value="1">1:1 (정사각)</option>
+          <option value="0.5625">9:16 (세로)</option>
+          <option value="custom">직접 입력</option>
+        </select>
+        <input type="text" id="resCustom" placeholder="예: 1920x1080" style="display:none; width:110px;" />
+      </span>
+
+      <span class="tb-group">
         <button id="outputBtn" class="primary">출력 모드(화면 띄우기)</button>
       </span>
     </div>

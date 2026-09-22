@@ -46,6 +46,7 @@
   let inkColor = '#111111';
   let autoAdd = true;
   let zTop = 1;
+  let stageAspect = 0; // 0 = 자유(채우기), 그 외 = 가로/세로 비율
 
   const sources = new Map(); // key `${vi}:${id}` -> source
   const versionNames = []; // index -> 표시 이름
@@ -77,6 +78,38 @@
   function clamp(v, min, max) {
     return Math.min(max, Math.max(min, v));
   }
+
+  // 무대를 선택한 화면비로 고정한다(방송 프레임). 0이면 영역을 꽉 채운다.
+  function applyStageSize() {
+    const wrap = document.querySelector('.editor-stagewrap');
+    if (!wrap) return;
+    if (!stageAspect) {
+      wrap.classList.remove('fixed-res');
+      stage.style.flex = '';
+      stage.style.width = '';
+      stage.style.height = '';
+      stage.style.margin = '';
+      return;
+    }
+    wrap.classList.add('fixed-res');
+    stage.style.flex = 'none';
+    stage.style.margin = 'auto';
+    const outputMode = editorEl.classList.contains('output-mode');
+    const hint = wrap.querySelector('.stage-hint');
+    const hintH = outputMode || !hint ? 0 : hint.offsetHeight + 8;
+    const pad = outputMode ? 0 : 24;
+    const availW = wrap.clientWidth - pad;
+    const availH = wrap.clientHeight - hintH - pad;
+    let w = availW;
+    let h = w / stageAspect;
+    if (h > availH) {
+      h = availH;
+      w = h * stageAspect;
+    }
+    stage.style.width = Math.max(1, Math.floor(w)) + 'px';
+    stage.style.height = Math.max(1, Math.floor(h)) + 'px';
+  }
+  window.addEventListener('resize', applyStageSize);
 
   // ---------- 소스(버전+태블릿) ----------
   function keyOf(vi, id) {
@@ -352,6 +385,27 @@
     b.addEventListener('click', () => { inkColor = b.getAttribute('data-ink'); document.getElementById('inkCustom').value = inkColor; retintAll(); });
   });
   document.getElementById('inkCustom').addEventListener('input', (e) => { inkColor = e.target.value; retintAll(); });
+  const resSelect = document.getElementById('resSelect');
+  const resCustom = document.getElementById('resCustom');
+  resSelect.addEventListener('change', () => {
+    if (resSelect.value === 'custom') {
+      resCustom.style.display = 'inline-block';
+      return;
+    }
+    resCustom.style.display = 'none';
+    stageAspect = parseFloat(resSelect.value) || 0;
+    applyStageSize();
+  });
+  resCustom.addEventListener('change', () => {
+    const m = resCustom.value.match(/(\d+(?:\.\d+)?)\s*[x×:]\s*(\d+(?:\.\d+)?)/);
+    if (m) {
+      const a = parseFloat(m[1]) / parseFloat(m[2]);
+      if (isFinite(a) && a > 0) {
+        stageAspect = a;
+        applyStageSize();
+      }
+    }
+  });
   document.getElementById('autoAdd').addEventListener('change', (e) => { autoAdd = e.target.checked; });
   document.getElementById('addAllBtn').addEventListener('click', () => {
     sources.forEach((s) => { if (s.online && !s.placed) addToStage(s); });
@@ -382,6 +436,7 @@
     exitOutputBtn.style.display = on ? 'block' : 'none';
     if (on) { document.documentElement.requestFullscreen && document.documentElement.requestFullscreen().catch(() => {}); }
     else if (document.fullscreenElement) { document.exitFullscreen().catch(() => {}); }
+    setTimeout(applyStageSize, 60); // 레이아웃이 바뀐 뒤 고정 화면비 다시 계산
   }
   document.getElementById('outputBtn').addEventListener('click', () => setOutput(true));
   exitOutputBtn.addEventListener('click', () => setOutput(false));
@@ -402,6 +457,7 @@
         loginEl.style.display = 'none';
         editorEl.style.display = 'flex';
         applyBg();
+        applyStageSize();
         return loadVersionNames();
       })
       .then(connectAll)
