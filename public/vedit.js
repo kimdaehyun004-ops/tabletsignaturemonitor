@@ -397,6 +397,8 @@
       })
       .then(() => {
         sessionStorage.setItem('adminPassword', pw);
+        // 이 기기에서는 다음부터 비밀번호 없이 바로 들어오도록 기억한다.
+        try { localStorage.setItem('veditPassword', pw); } catch {}
         loginEl.style.display = 'none';
         editorEl.style.display = 'flex';
         applyBg();
@@ -404,8 +406,9 @@
       })
       .then(connectAll)
       .catch(() => {
+        loginEl.style.display = 'block';
         loginError.textContent = '비밀번호가 올바르지 않습니다.';
-        sessionStorage.removeItem('adminPassword');
+        try { localStorage.removeItem('veditPassword'); } catch {}
       });
   }
   document.getElementById('loginBtn').addEventListener('click', () => {
@@ -414,6 +417,12 @@
     enter();
   });
   passwordInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') document.getElementById('loginBtn').click(); });
-  const savedPw = sessionStorage.getItem('adminPassword');
-  if (savedPw) { pw = savedPw; enter(); }
+
+  // 비밀번호 없이 접속: 링크의 ?pw= 값, 이 기기에 기억된 값, 또는 관리자 세션 순으로
+  // 자동 로그인한다. 한 번만 설정해두면 다음부터는 로그인 화면 없이 바로 들어온다.
+  let autoPw = '';
+  try { autoPw = new URLSearchParams(location.search).get('pw') || ''; } catch {}
+  if (!autoPw) { try { autoPw = localStorage.getItem('veditPassword') || ''; } catch {} }
+  if (!autoPw) { try { autoPw = sessionStorage.getItem('adminPassword') || ''; } catch {} }
+  if (autoPw) { pw = autoPw; enter(); }
 })();

@@ -904,10 +904,8 @@ html, body {
 .editor-page.output-mode .editor-body { padding: 0; }
 .editor-page.output-mode .editor-stagewrap { padding: 0; }
 .editor-page.output-mode .editor-stage { border-radius: 0; box-shadow: none; }
-.editor-page.output-mode .vitem.selected { outline: none; }
-.editor-page.output-mode .vitem .rh,
-.editor-page.output-mode .vitem .item-remove,
-.editor-page.output-mode .vitem-label { display: none !important; }
+/* 출력 모드에서도 항목을 선택하면 핸들이 나와 크기 조정을 할 수 있다.
+   아무것도 선택 안 하면(빈 무대 클릭) 핸들·테두리가 사라져 깨끗한 송출 화면이 된다. */
 .exit-output {
   position: fixed; top: 10px; right: 10px; z-index: 9999;
   padding: 8px 12px; border-radius: 8px; border: 1px solid #555;
