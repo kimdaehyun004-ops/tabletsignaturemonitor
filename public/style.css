@@ -784,3 +784,71 @@ html, body {
 .dash-dot.on { background: #16a34a; color: #fff; }
 .dash-links { display: flex; gap: 12px; }
 .dash-links a { color: #9fb3ff; text-decoration: none; font-size: 13px; }
+
+/* ==================== 서명 편집 · 크로마키 (board.html) ==================== */
+.editor-page { display: flex; flex-direction: column; min-height: 100vh; background: #0e1216; }
+.editor-toolbar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 14px;
+  padding: 10px 14px; background: #171c22; border-bottom: 1px solid #2a2f36;
+}
+.editor-title { color: #e5e7eb; font-size: 15px; margin-right: 4px; }
+.tb-group { display: inline-flex; align-items: center; gap: 6px; }
+.tb-label { color: #9aa4b2; font-size: 12px; }
+.editor-toolbar button {
+  padding: 7px 12px; border-radius: 7px; border: 1px solid #39414c;
+  background: #1a1f24; color: #cbd5e1; cursor: pointer; font-size: 13px;
+}
+.editor-toolbar button:hover { background: #222831; }
+.editor-toolbar button.primary { background: #2563eb; border-color: #2563eb; color: #fff; font-weight: 700; }
+.editor-toolbar button.primary:hover { background: #1d4ed8; }
+.editor-toolbar .admin-link { color: #93c5fd; }
+.bg-preset, .ink-preset {
+  width: 26px; height: 26px; padding: 0 !important; border-radius: 6px !important;
+  border: 1px solid #4b5563 !important; cursor: pointer; font-size: 11px !important; color: #cbd5e1;
+}
+.bg-preset[data-bg="transparent"] { width: auto; padding: 0 8px !important; background: #1a1f24 !important; }
+.editor-toolbar input[type="color"] {
+  width: 30px; height: 28px; padding: 0; border: 1px solid #39414c; border-radius: 6px; background: #1a1f24; cursor: pointer;
+}
+
+.editor-body { flex: 1; display: flex; min-height: 0; }
+.editor-tray {
+  width: 240px; flex: 0 0 auto; background: #12171c; border-right: 1px solid #2a2f36;
+  display: flex; flex-direction: column; min-height: 0;
+}
+.tray-head { display: flex; justify-content: space-between; padding: 12px 12px 4px; color: #e5e7eb; font-weight: 700; }
+.tray-hint { color: #7c8794; font-size: 12px; padding: 0 12px 8px; margin: 0; }
+.tray-grid { flex: 1; overflow: auto; padding: 8px 12px 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-content: start; }
+.tray-cell { background: #fff; border: 1px solid #2a2f36; border-radius: 8px; overflow: hidden; cursor: pointer; }
+.tray-cell:hover { outline: 2px solid #2563eb; }
+.tray-cell img { width: 100%; height: 70px; object-fit: contain; display: block; background: #fff; }
+.tray-cap { font-size: 11px; color: #556; text-align: center; padding: 3px 0; background: #eef2f7; }
+
+.editor-stagewrap { flex: 1; display: flex; flex-direction: column; min-height: 0; padding: 12px; gap: 8px; }
+.editor-stage {
+  flex: 1; position: relative; overflow: hidden; border-radius: 8px;
+  background: #00B140; box-shadow: 0 0 0 1px #2a2f36;
+}
+.editor-stage.transparent {
+  background-color: #fff;
+  background-image:
+    linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%);
+  background-size: 22px 22px;
+  background-position: 0 0, 0 11px, 11px -11px, -11px 0;
+}
+.stage-hint { color: #7c8794; font-size: 12px; margin: 0; }
+
+.stage-item { position: absolute; cursor: grab; touch-action: none; }
+.stage-item.selected { outline: 2px dashed #2563eb; outline-offset: 2px; }
+.stage-item img { width: 100%; height: 100%; display: block; pointer-events: none; user-select: none; }
+.resize-handle {
+  position: absolute; right: -8px; bottom: -8px; width: 18px; height: 18px;
+  background: #2563eb; border: 2px solid #fff; border-radius: 50%; cursor: nwse-resize; touch-action: none;
+}
+.item-remove {
+  position: absolute; top: -10px; right: -10px; width: 22px; height: 22px; line-height: 18px;
+  padding: 0; border-radius: 50%; border: 2px solid #fff; background: #dc2626; color: #fff;
+  font-size: 14px; cursor: pointer; display: none;
+}
+.stage-item.selected .item-remove { display: block; }

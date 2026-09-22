@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>서명 편집 · 크로마키</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="login" class="login-box">
+    <h2>서명 편집 접속</h2>
+    <input id="passwordInput" type="password" placeholder="관리자 비밀번호" />
+    <button id="loginBtn">입장</button>
+    <div class="login-error" id="loginError"></div>
+    <div class="keypad" data-keypad-target="#passwordInput" data-keypad-submit="#loginBtn"></div>
+  </div>
+
+  <div id="editorPage" class="editor-page" style="display:none;">
+    <div class="editor-toolbar">
+      <strong class="editor-title">서명 편집 · 크로마키</strong>
+
+      <span class="tb-group">
+        <span class="tb-label">배경</span>
+        <button class="bg-preset" data-bg="#00B140" title="크로마 그린" style="background:#00B140;"></button>
+        <button class="bg-preset" data-bg="#0047BB" title="크로마 블루" style="background:#0047BB;"></button>
+        <button class="bg-preset" data-bg="#ffffff" title="흰색" style="background:#fff;"></button>
+        <button class="bg-preset" data-bg="#000000" title="검정" style="background:#000;"></button>
+        <button class="bg-preset" data-bg="transparent" title="투명">투명</button>
+        <input type="color" id="bgCustom" value="#00b140" title="배경색 직접 선택" />
+      </span>
+
+      <span class="tb-group">
+        <span class="tb-label">서명 색</span>
+        <button class="ink-preset" data-ink="#111111" title="검정" style="background:#111;"></button>
+        <button class="ink-preset" data-ink="#ffffff" title="흰색" style="background:#fff;"></button>
+        <input type="color" id="inkCustom" value="#111111" title="서명색 직접 선택" />
+      </span>
+
+      <span class="tb-group">
+        <button id="addAllBtn">모두 추가</button>
+        <button id="arrangeBtn">격자 정렬</button>
+        <button id="clearStageBtn">무대 비우기</button>
+      </span>
+
+      <span class="tb-group">
+        <button id="exportBtn" class="primary">이미지로 저장 (PNG)</button>
+        <button id="refreshBtn">새로고침</button>
+        <a href="admin.html" class="admin-link">관리자 ↗</a>
+      </span>
+    </div>
+
+    <div class="editor-body">
+      <div class="editor-tray">
+        <div class="tray-head"><span>저장된 서명</span><span id="trayCount"></span></div>
+        <p class="tray-hint">썸네일을 누르면 오른쪽 무대에 올라갑니다.</p>
+        <div id="tray" class="tray-grid"></div>
+      </div>
+
+      <div class="editor-stagewrap">
+        <div id="stage" class="editor-stage"></div>
+        <p class="stage-hint">무대에서 서명을 드래그해 옮기고, 오른쪽 아래 모서리를 끌어 크기를 바꿉니다. 클릭하면 선택됩니다.</p>
+      </div>
+    </div>
+  </div>
+
+  <script src="keypad.js"></script>
+  <script src="board.js"></script>
+</body>
+</html>
