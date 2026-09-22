@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>V태블릿 편집 · 실시간 크로마키</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="login" class="login-box">
+    <h2>V태블릿 편집 접속</h2>
+    <input id="passwordInput" type="password" placeholder="관리자 비밀번호" />
+    <button id="loginBtn">입장</button>
+    <div class="login-error" id="loginError"></div>
+    <div class="keypad" data-keypad-target="#passwordInput" data-keypad-submit="#loginBtn"></div>
+  </div>
+
+  <div id="editorPage" class="editor-page" style="display:none;">
+    <div class="editor-toolbar">
+      <strong class="editor-title">V태블릿 편집 · 실시간</strong>
+
+      <span class="tb-group">
+        <span class="tb-label">배경</span>
+        <button class="bg-preset" data-bg="#00B140" title="크로마 그린" style="background:#00B140;"></button>
+        <button class="bg-preset" data-bg="#0047BB" title="크로마 블루" style="background:#0047BB;"></button>
+        <button class="bg-preset" data-bg="#ffffff" title="흰색" style="background:#fff;"></button>
+        <button class="bg-preset" data-bg="#000000" title="검정" style="background:#000;"></button>
+        <button class="bg-preset" data-bg="transparent" title="투명">투명</button>
+        <input type="color" id="bgCustom" value="#00b140" title="배경색 직접 선택" />
+      </span>
+
+      <span class="tb-group">
+        <span class="tb-label">서명 색</span>
+        <button class="ink-preset" data-ink="#111111" title="검정" style="background:#111;"></button>
+        <button class="ink-preset" data-ink="#ffffff" title="흰색" style="background:#fff;"></button>
+        <input type="color" id="inkCustom" value="#111111" title="서명색 직접 선택" />
+      </span>
+
+      <span class="tb-group">
+        <label class="tb-label" style="cursor:pointer;"><input type="checkbox" id="autoAdd" checked /> 새 접속 자동 추가</label>
+        <button id="addAllBtn">접속된 것 모두 추가</button>
+        <button id="clearStageBtn">무대 비우기</button>
+        <button id="versionsBtn">버전 주소</button>
+      </span>
+
+      <span class="tb-group">
+        <button id="outputBtn" class="primary">출력 모드(화면 띄우기)</button>
+      </span>
+    </div>
+
+    <div id="versionsBox" class="edit-box" style="display:none; margin:10px 14px;">
+      <p class="bg-hint">불러올 버전 주소를 한 줄에 하나씩 입력하세요. (세 버전 관리자 비번이 같아야 함)</p>
+      <textarea id="versionsInput" rows="3" placeholder="https://tabletsignaturemonitor.onrender.com&#10;https://tabletsignaturemonitor-v2.onrender.com&#10;https://tabletsignaturemonitor-v3.onrender.com"></textarea>
+      <button id="versionsSave">저장 후 다시 연결</button>
+    </div>
+
+    <div class="editor-body">
+      <div class="editor-tray">
+        <div class="tray-head"><span>접속된 태블릿</span><span id="trayCount"></span></div>
+        <p class="tray-hint">지금 접속되어 있는 태블릿입니다. 누르면 무대에 올라갑니다.</p>
+        <div id="sourceList" class="source-list"></div>
+      </div>
+
+      <div class="editor-stagewrap">
+        <div id="stage" class="editor-stage"></div>
+        <p class="stage-hint">본체를 끌어 이동 · 모서리/변을 끌어 자유 변형(좌우·상하 찌그러뜨리기) · 클릭해 선택. "출력 모드"를 누르면 이 무대만 크게 표시됩니다(방송용).</p>
+      </div>
+    </div>
+    <button id="exitOutput" class="exit-output" style="display:none;">✕ 출력 모드 종료</button>
+  </div>
+
+  <script src="keypad.js"></script>
+  <script src="vedit.js"></script>
+</body>
+</html>

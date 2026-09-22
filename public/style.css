@@ -852,3 +852,64 @@ html, body {
   font-size: 14px; cursor: pointer; display: none;
 }
 .stage-item.selected .item-remove { display: block; }
+
+/* ============ V태블릿 편집 · 실시간 (vedit.html) ============ */
+.source-list { flex: 1; overflow: auto; padding: 8px 10px 16px; display: flex; flex-direction: column; gap: 6px; }
+.source-row {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  padding: 9px 10px; border-radius: 8px; border: 1px solid #2a2f36;
+  background: #1a1f24; color: #d5dbe3; cursor: pointer; font-size: 13px; text-align: left;
+}
+.source-row:hover { background: #222831; }
+.source-row .src-dot { width: 9px; height: 9px; border-radius: 50%; background: #27ae60; flex: 0 0 auto; }
+.source-row.off .src-dot { background: #c0392b; }
+.source-row .src-name { flex: 1; }
+.source-row .src-state { font-size: 11px; color: #8a94a2; }
+.source-row.placed { opacity: 0.55; }
+.source-row.placed .src-state { color: #4ade80; }
+
+.vitem { position: absolute; cursor: grab; touch-action: none; }
+.vitem canvas { width: 100%; height: 100%; display: block; pointer-events: none; }
+.vitem.selected { outline: 2px dashed #2563eb; outline-offset: 2px; }
+.vitem-label {
+  position: absolute; left: 0; top: -18px; font-size: 11px; color: #fff;
+  background: rgba(0,0,0,0.45); padding: 1px 6px; border-radius: 4px; white-space: nowrap;
+  pointer-events: none; opacity: 0; transition: opacity 0.15s;
+}
+.vitem.selected .vitem-label { opacity: 1; }
+.vitem .item-remove {
+  position: absolute; top: -10px; right: -10px; width: 22px; height: 22px; line-height: 18px;
+  padding: 0; border-radius: 50%; border: 2px solid #fff; background: #dc2626; color: #fff;
+  font-size: 14px; cursor: pointer; display: none;
+}
+.vitem.selected .item-remove { display: block; }
+
+/* 자유 변형 핸들 (8방향). 선택했을 때만 보인다. */
+.vitem .rh { position: absolute; width: 14px; height: 14px; background: #2563eb; border: 2px solid #fff; border-radius: 50%; display: none; touch-action: none; }
+.vitem.selected .rh { display: block; }
+.rh-nw { left: -8px; top: -8px; cursor: nwse-resize; }
+.rh-ne { right: -8px; top: -8px; cursor: nesw-resize; }
+.rh-se { right: -8px; bottom: -8px; cursor: nwse-resize; }
+.rh-sw { left: -8px; bottom: -8px; cursor: nesw-resize; }
+.rh-n { left: 50%; top: -8px; transform: translateX(-50%); cursor: ns-resize; border-radius: 3px; }
+.rh-s { left: 50%; bottom: -8px; transform: translateX(-50%); cursor: ns-resize; border-radius: 3px; }
+.rh-e { right: -8px; top: 50%; transform: translateY(-50%); cursor: ew-resize; border-radius: 3px; }
+.rh-w { left: -8px; top: 50%; transform: translateY(-50%); cursor: ew-resize; border-radius: 3px; }
+
+/* 출력 모드: 무대만 화면 가득. 편집 UI/핸들/라벨 모두 숨김(방송/크로마키용). */
+.editor-page.output-mode .editor-toolbar,
+.editor-page.output-mode .editor-tray,
+.editor-page.output-mode .stage-hint,
+.editor-page.output-mode #versionsBox { display: none !important; }
+.editor-page.output-mode .editor-body { padding: 0; }
+.editor-page.output-mode .editor-stagewrap { padding: 0; }
+.editor-page.output-mode .editor-stage { border-radius: 0; box-shadow: none; }
+.editor-page.output-mode .vitem.selected { outline: none; }
+.editor-page.output-mode .vitem .rh,
+.editor-page.output-mode .vitem .item-remove,
+.editor-page.output-mode .vitem-label { display: none !important; }
+.exit-output {
+  position: fixed; top: 10px; right: 10px; z-index: 9999;
+  padding: 8px 12px; border-radius: 8px; border: 1px solid #555;
+  background: rgba(0,0,0,0.5); color: #fff; cursor: pointer; font-size: 13px;
+}
