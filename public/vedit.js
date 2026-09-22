@@ -429,18 +429,65 @@
     if (e.target === stage) { selectedSource = null; sources.forEach((o) => { if (o.item) o.item.el.classList.remove('selected'); }); }
   });
 
-  // 출력 모드: 무대만 크게 (방송/키잉용). 실제 전체화면도 함께 시도.
+  // 출력 모드: 무대만 크게 (방송/키잉용). 선택한 모니터로 전체화면을 띄운다.
   const exitOutputBtn = document.getElementById('exitOutput');
+  let screenDetails = null;
+  let targetScreen = null;
+
+  function fullscreenOut() {
+    const el = document.documentElement;
+    if (!el.requestFullscreen) return;
+    const opts = targetScreen ? { screen: targetScreen } : undefined;
+    Promise.resolve()
+      .then(() => el.requestFullscreen(opts))
+      .catch(() => { if (opts) el.requestFullscreen().catch(() => {}); });
+  }
   function setOutput(on) {
     editorEl.classList.toggle('output-mode', on);
     exitOutputBtn.style.display = on ? 'block' : 'none';
-    if (on) { document.documentElement.requestFullscreen && document.documentElement.requestFullscreen().catch(() => {}); }
+    if (on) fullscreenOut();
     else if (document.fullscreenElement) { document.exitFullscreen().catch(() => {}); }
     setTimeout(applyStageSize, 60); // 레이아웃이 바뀐 뒤 고정 화면비 다시 계산
   }
   document.getElementById('outputBtn').addEventListener('click', () => setOutput(true));
   exitOutputBtn.addEventListener('click', () => setOutput(false));
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') setOutput(false); });
+
+  // 출력할 모니터 선택 (여러 대 연결 시). 브라우저의 창 관리 API가 있으면
+  // 모니터 목록을 보여주고, 선택한 모니터로 출력 모드 전체화면을 띄운다.
+  const screenSelect = document.getElementById('screenSelect');
+  document.getElementById('screenBtn').addEventListener('click', async () => {
+    if (!('getScreenDetails' in window)) {
+      alert('이 브라우저는 모니터 선택을 지원하지 않습니다.\n출력할 모니터로 이 창을 옮긴 뒤 "출력 모드"를 누르면 그 모니터에 전체화면으로 표시됩니다.');
+      return;
+    }
+    try {
+      if (!screenDetails) screenDetails = await window.getScreenDetails();
+    } catch {
+      alert('모니터 접근 권한이 필요합니다. 주소창 옆 권한 아이콘에서 "화면 관리"를 허용해주세요.');
+      return;
+    }
+    const build = () => {
+      screenSelect.innerHTML = '';
+      screenDetails.screens.forEach((s, i) => {
+        const opt = document.createElement('option');
+        opt.value = String(i);
+        opt.textContent = `모니터 ${i + 1} (${s.width}×${s.height})${s.isPrimary ? ' · 주모니터' : ''}`;
+        screenSelect.appendChild(opt);
+      });
+      const cur = screenDetails.screens.indexOf(screenDetails.currentScreen);
+      screenSelect.value = String(cur >= 0 ? cur : 0);
+      targetScreen = screenDetails.screens[parseInt(screenSelect.value, 10)] || null;
+    };
+    build();
+    screenDetails.addEventListener && screenDetails.addEventListener('screenschange', build);
+    screenSelect.style.display = 'inline-block';
+  });
+  screenSelect.addEventListener('change', () => {
+    if (screenDetails) targetScreen = screenDetails.screens[parseInt(screenSelect.value, 10)] || null;
+    // 이미 출력 중이면 선택한 모니터로 다시 전체화면
+    if (editorEl.classList.contains('output-mode')) fullscreenOut();
+  });
 
   // ---------- 로그인 ----------
   function enter() {
