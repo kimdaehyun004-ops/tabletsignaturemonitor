@@ -255,15 +255,26 @@
     label.textContent = s.label;
     el.appendChild(label);
 
+    // 이 자리에 표시할 태블릿을 고르는 드롭다운(교체용). 선택했을 때만 보인다.
+    const srcSelect = document.createElement('select');
+    srcSelect.className = 'vitem-src';
+    srcSelect.title = '이 자리에 표시할 태블릿 선택(교체)';
+    el.appendChild(srcSelect);
+    srcSelect.addEventListener('pointerdown', (e) => e.stopPropagation());
+    srcSelect.addEventListener('mousedown', () => buildSrcOptions(srcSelect, item));
+    srcSelect.addEventListener('focus', () => buildSrcOptions(srcSelect, item));
+    srcSelect.addEventListener('change', () => swapItemSource(item, srcSelect.value));
+
     stage.appendChild(el);
     const item = { source: s, el, canvas, ctx: canvas.getContext('2d'), drawer: null, x, y, w, h };
     s.items.push(item);
+    buildSrcOptions(srcSelect, item);
     fitCanvas(item);
     selectItem(item);
 
     // 이동 (본체/캔버스 드래그)
     el.addEventListener('pointerdown', (e) => {
-      if (e.target.classList.contains('rh') || e.target === remove || e.target === dup || e.target === clearBtn) return;
+      if (e.target.classList.contains('rh') || e.target === remove || e.target === dup || e.target === clearBtn || e.target === srcSelect) return;
       selectItem(item);
       el.style.zIndex = String(++zTop);
       const sx = e.clientX, sy = e.clientY;
@@ -327,6 +338,33 @@
 
     renderSourceList();
     return item;
+  }
+
+  // 무대의 한 자리(박스)는 그대로 두고, 표시할 태블릿(소스)만 바꾼다 → 빠른 교체.
+  function buildSrcOptions(select, item) {
+    select.innerHTML = '';
+    const list = [...sources.values()].filter((s) => s.online || s === item.source);
+    list.sort((a, b) => (a.vi - b.vi) || (a.id - b.id));
+    list.forEach((s) => {
+      const o = document.createElement('option');
+      o.value = s.key;
+      o.textContent = s.label + (s.online ? '' : ' (끊김)');
+      if (s === item.source) o.selected = true;
+      select.appendChild(o);
+    });
+  }
+  function swapItemSource(item, newKey) {
+    const ns = sources.get(newKey);
+    if (!ns || ns === item.source) return;
+    const old = item.source;
+    const i = old.items.indexOf(item);
+    if (i >= 0) old.items.splice(i, 1);
+    item.source = ns;
+    ns.items.push(item);
+    const lbl = item.el.querySelector('.vitem-label');
+    if (lbl) lbl.textContent = ns.label;
+    replay(item); // 같은 박스에 새 태블릿의 현재 서명을 그린다(크기/위치 유지).
+    renderSourceList();
   }
 
   function removeItem(item) {

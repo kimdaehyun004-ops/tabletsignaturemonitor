@@ -941,3 +941,11 @@ html, body {
   font-size: 12px; cursor: pointer; display: none; z-index: 6;
 }
 .vitem.selected .item-clear { display: block; }
+
+/* vedit: 자리(박스)에 표시할 태블릿 교체 드롭다운 (선택 시 표시) */
+.vitem .vitem-src {
+  position: absolute; left: 4px; top: 4px; display: none; z-index: 6;
+  max-width: 78%; font-size: 12px; padding: 2px 4px; border-radius: 6px;
+  border: 1px solid #39414c; background: rgba(26,31,36,0.92); color: #e5e7eb; cursor: pointer;
+}
+.vitem.selected .vitem-src { display: block; }
