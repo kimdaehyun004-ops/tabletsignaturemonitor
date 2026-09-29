@@ -78,6 +78,58 @@
     return Math.min(max, Math.max(min, v));
   }
 
+  // 드래그 중 다른 서명(또는 무대 중앙)과 세로 중심이 가까우면 같은 높이에 착 붙인다.
+  // → 손으로 옮겨도 가로로 반듯하게 정렬된다.
+  function snapItemY(item) {
+    const SNAP = 9;
+    const cy = item.y + item.h / 2;
+    let target = null;
+    if (Math.abs(cy - stage.clientHeight / 2) < SNAP) target = stage.clientHeight / 2;
+    if (target === null) {
+      sources.forEach((s) => s.items.forEach((it) => {
+        if (it === item || target !== null) return;
+        const oc = it.y + it.h / 2;
+        if (Math.abs(cy - oc) < SNAP) target = oc;
+      }));
+    }
+    if (target !== null) item.y = Math.round(target - item.h / 2);
+  }
+
+  // 무대의 모든 서명을 한 줄로(가로) 반듯하게 배치한다. 각자의 현재 비율은 유지한다.
+  function arrangeRow() {
+    const items = [];
+    sources.forEach((s) => s.items.forEach((it) => items.push(it)));
+    if (!items.length) return;
+    const pad = 16;
+    const n = items.length;
+    let H = stage.clientHeight * 0.6;
+    const aspects = items.map((it) => (it.h > 0 ? it.w / it.h : 1.6));
+    const widthsAt = (h) => aspects.map((a) => h * a);
+    let widths = widthsAt(H);
+    let total = widths.reduce((a, b) => a + b, 0) + pad * (n - 1);
+    const maxW = stage.clientWidth - pad * 2;
+    if (total > maxW) {
+      const sumW = widths.reduce((a, b) => a + b, 0);
+      H = H * ((maxW - pad * (n - 1)) / sumW);
+      widths = widthsAt(H);
+      total = widths.reduce((a, b) => a + b, 0) + pad * (n - 1);
+    }
+    let x = Math.round((stage.clientWidth - total) / 2);
+    const y = Math.round((stage.clientHeight - H) / 2);
+    items.forEach((it, i) => {
+      it.w = Math.round(widths[i]);
+      it.h = Math.round(H);
+      it.x = x;
+      it.y = y;
+      it.el.style.left = it.x + 'px';
+      it.el.style.top = it.y + 'px';
+      it.el.style.width = it.w + 'px';
+      it.el.style.height = it.h + 'px';
+      fitCanvas(it);
+      x += it.w + pad;
+    });
+  }
+
   // 무대를 선택한 화면비로 고정한다(방송 프레임). 0이면 영역을 꽉 채운다.
   function applyStageSize() {
     const wrap = document.querySelector('.editor-stagewrap');
@@ -214,6 +266,7 @@
       const move = (ev) => {
         item.x = clamp(ox + (ev.clientX - sx), -item.w + 40, stage.clientWidth - 40);
         item.y = clamp(oy + (ev.clientY - sy), -item.h + 40, stage.clientHeight - 40);
+        snapItemY(item);
         el.style.left = item.x + 'px';
         el.style.top = item.y + 'px';
       };
@@ -434,6 +487,7 @@
   document.getElementById('addAllBtn').addEventListener('click', () => {
     sources.forEach((s) => { if (s.online && !isPlaced(s)) addToStage(s); });
   });
+  document.getElementById('rowBtn').addEventListener('click', arrangeRow);
   document.getElementById('clearStageBtn').addEventListener('click', () => {
     sources.forEach((s) => s.items.slice().forEach(removeItem));
   });
