@@ -205,6 +205,7 @@
     let reconnectDelay = 1000;
     let reconnectTimer = null;
     let kicked = false; // 관리자가 연결을 끊으면 true. 자동 재연결을 멈춘다.
+    let lastServerMsg = Date.now(); // 서버로부터 마지막으로 뭔가 받은 시각(반쪽 연결 감지용)
     let pendingPoints = [];
     let flushScheduled = false;
     let drawing = false;
@@ -292,11 +293,16 @@
       ws = new WebSocket(`${protocol}://${location.host}`);
 
       ws.addEventListener('open', () => {
+        lastServerMsg = Date.now();
         ws.send(JSON.stringify({ type: 'hello', role: 'tablet', id: tabletId, token, aspect: currentAspect() }));
       });
 
       ws.addEventListener('message', (ev) => {
+        lastServerMsg = Date.now();
         const msg = JSON.parse(ev.data);
+        if (msg.type === 'pong') {
+          return; // 앱 하트비트 응답 (살아있음 확인용)
+        }
         if (msg.type === 'auth_ok') {
           setStatus(true, '연결됨');
           reconnectDelay = 1000;
@@ -353,6 +359,22 @@
     });
     window.addEventListener('pageshow', ensureConnected);
     window.addEventListener('online', ensureConnected);
+
+    // 앱 레벨 하트비트: 10초마다 서버에 ping을 보내 살아있음을 알린다.
+    // 그리고 서버로부터 한동안(30초) 아무 응답이 없으면 연결이 죽은 것(반쪽 연결)으로
+    // 보고 강제로 다시 연결한다. 이렇게 하면 태블릿만 "연결됨"으로 남고 서버는 끊긴
+    // 것으로 아는 어긋남이 저절로 복구된다.
+    setInterval(() => {
+      if (kicked) return;
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        try { ws.send(JSON.stringify({ type: 'ping' })); } catch {}
+        if (Date.now() - lastServerMsg > 30000) {
+          try { ws.close(); } catch {}
+        }
+      } else {
+        ensureConnected();
+      }
+    }, 10000);
 
     function normPoint(clientX, clientY) {
       const rect = canvas.getBoundingClientRect();

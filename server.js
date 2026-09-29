@@ -584,6 +584,13 @@ wss.on('connection', (ws) => {
       return;
     }
 
+    // 앱 레벨 하트비트: 태블릿이 보내는 ping에 pong으로 답한다. (프록시가 WS 제어프레임
+    // pong을 흘려도 실제 메시지로 살아있음을 확인할 수 있어 오판 끊김을 막는다.)
+    if (msg.type === 'ping') {
+      try { ws.send(JSON.stringify({ type: 'pong' })); } catch {}
+      return;
+    }
+
     if (msg.type === 'hello') {
       if (msg.role === 'monitor') {
         // 관리자 비번 또는 유효한 게스트 비번이면 모니터링을 볼 수 있다.
@@ -759,7 +766,7 @@ wss.on('connection', (ws) => {
 // 없으면 실제로 신호가 끊긴 것으로 보고 종료해 모니터에 "끊김"으로 반영한다.
 // 모니터(관리자 PC): 한 주기 동안 pong이 없으면 종료한다.
 const HEARTBEAT_INTERVAL = 10000;
-const TABLET_DEAD_MS = 25000; // 이 시간 동안 응답이 없으면 태블릿을 끊긴 것으로 처리
+const TABLET_DEAD_MS = 35000; // 이 시간 동안 태블릿 응답(앱 ping/그리기/pong)이 없으면 끊긴 것으로 처리
 const heartbeat = setInterval(() => {
   const now = Date.now();
   wss.clients.forEach((ws) => {
