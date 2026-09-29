@@ -930,3 +930,6 @@ html, body {
 /* vedit: 코너 핸들이 ×/⧉ 버튼을 가리지 않도록 버튼을 위로 */
 .vitem .rh { z-index: 4; }
 .vitem .item-remove, .vitem .item-dup { z-index: 6; }
+
+/* vedit: 출력 모드 '모두 지우기' 플로팅 버튼 (종료 버튼 왼쪽) */
+.exit-output.clear-out { right: 150px; background: rgba(120, 20, 20, 0.6); }

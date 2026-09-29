@@ -455,8 +455,13 @@
 
   // 출력 모드
   const exitOutputBtn = document.getElementById('exitOutput');
+  const clearOutBtn = document.getElementById('clearOut');
   let screenDetails = null;
   let targetScreen = null;
+
+  function clearStage() {
+    sources.forEach((s) => s.items.slice().forEach(removeItem));
+  }
 
   function fullscreenOut() {
     const el = document.documentElement;
@@ -469,12 +474,16 @@
   function setOutput(on) {
     editorEl.classList.toggle('output-mode', on);
     exitOutputBtn.style.display = on ? 'block' : 'none';
+    clearOutBtn.style.display = on ? 'block' : 'none';
     if (on) fullscreenOut();
     else if (document.fullscreenElement) { document.exitFullscreen().catch(() => {}); }
     setTimeout(applyStageSize, 60);
   }
   document.getElementById('outputBtn').addEventListener('click', () => setOutput(true));
   exitOutputBtn.addEventListener('click', () => setOutput(false));
+  clearOutBtn.addEventListener('click', () => {
+    if (confirm('무대의 모든 서명을 지울까요?')) clearStage();
+  });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') setOutput(false); });
 
   const screenSelect = document.getElementById('screenSelect');
