@@ -231,6 +231,12 @@
     dup.title = '같은 서명 복제';
     el.appendChild(dup);
 
+    const clearBtn = document.createElement('button');
+    clearBtn.className = 'item-clear';
+    clearBtn.textContent = '🧹';
+    clearBtn.title = '이 태블릿의 서명 지우기';
+    el.appendChild(clearBtn);
+
     const remove = document.createElement('button');
     remove.className = 'item-remove';
     remove.textContent = '×';
@@ -257,7 +263,7 @@
 
     // 이동 (본체/캔버스 드래그)
     el.addEventListener('pointerdown', (e) => {
-      if (e.target.classList.contains('rh') || e.target === remove || e.target === dup) return;
+      if (e.target.classList.contains('rh') || e.target === remove || e.target === dup || e.target === clearBtn) return;
       selectItem(item);
       el.style.zIndex = String(++zTop);
       const sx = e.clientX, sy = e.clientY;
@@ -309,6 +315,11 @@
       // 같은 서명을 하나 더(같은 크기, 살짝 옆으로) 올린다.
       addToStage(s, { x: item.x + 30, y: item.y + 30, w: item.w, h: item.h });
     });
+    clearBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      // 이 태블릿의 실제 서명을 원격으로 지운다(태블릿 화면도 비워짐).
+      sendRemoteClear(s);
+    });
     remove.addEventListener('click', (e) => {
       e.stopPropagation();
       removeItem(item);
@@ -325,6 +336,25 @@
     if (i >= 0) arr.splice(i, 1);
     if (selectedItem === item) selectedItem = null;
     renderSourceList();
+  }
+
+  // 해당 태블릿의 실제 서명을 원격으로 지운다(그 버전 서버로 remote_clear 전송).
+  // 서버가 태블릿과 모든 모니터에 clear를 전파하므로, 태블릿 화면과 이 무대의 해당 서명이 함께 비워진다.
+  function sendRemoteClear(s) {
+    const c = conns[s.vi];
+    if (c && c.ws && c.ws.readyState === WebSocket.OPEN) {
+      c.ws.send(JSON.stringify({ type: 'remote_clear', id: s.id }));
+    }
+  }
+  // 무대에 올라온 모든 태블릿의 서명을 지운다(중복 소스는 한 번만).
+  function clearAllTabletSignatures() {
+    const done = new Set();
+    sources.forEach((s) => {
+      if (s.items.length && !done.has(s.key)) {
+        done.add(s.key);
+        sendRemoteClear(s);
+      }
+    });
   }
 
   function selectItem(item) {
@@ -536,7 +566,7 @@
   document.getElementById('outputBtn').addEventListener('click', () => setOutput(true));
   exitOutputBtn.addEventListener('click', () => setOutput(false));
   clearOutBtn.addEventListener('click', () => {
-    if (confirm('무대의 모든 서명을 지울까요?')) clearStage();
+    if (confirm('무대에 있는 모든 태블릿의 서명을 지울까요? (태블릿 화면도 비워집니다)')) clearAllTabletSignatures();
   });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') setOutput(false); });
 

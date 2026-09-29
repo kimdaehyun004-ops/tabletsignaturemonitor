@@ -933,3 +933,11 @@ html, body {
 
 /* vedit: 출력 모드 '모두 지우기' 플로팅 버튼 (종료 버튼 왼쪽) */
 .exit-output.clear-out { right: 150px; background: rgba(120, 20, 20, 0.6); }
+
+/* vedit: 개별 서명 '태블릿 지우기' 버튼 (⧉ 왼쪽, 선택 시 표시) */
+.vitem .item-clear {
+  position: absolute; top: -10px; right: 46px; height: 22px; min-width: 22px; line-height: 18px;
+  padding: 0 4px; border-radius: 11px; border: 2px solid #fff; background: #b45309; color: #fff;
+  font-size: 12px; cursor: pointer; display: none; z-index: 6;
+}
+.vitem.selected .item-clear { display: block; }
