@@ -51,10 +51,10 @@
   const sources = new Map(); // key `${vi}:${id}` -> source
   const versionNames = []; // index -> 표시 이름
   let conns = []; // per version { url, index, ws, timer, closedByUs }
+  let selectedItem = null;
 
   document.title = 'V태블릿 편집 · 실시간 크로마키';
 
-  // ---------- 버전 주소 목록 (대시보드와 같은 localStorage 키 공유) ----------
   function loadVersionUrls() {
     try {
       const arr = JSON.parse(localStorage.getItem('dashboardUrls') || 'null');
@@ -64,7 +64,6 @@
   }
   let versionUrls = loadVersionUrls();
 
-  // ---------- 색 ----------
   function applyBg() {
     if (bgColor === 'transparent') {
       stage.classList.add('transparent');
@@ -111,7 +110,7 @@
   }
   window.addEventListener('resize', applyStageSize);
 
-  // ---------- 소스(버전+태블릿) ----------
+  // ---------- 소스(버전+태블릿). 한 소스를 무대에 여러 개(복제) 올릴 수 있다. ----------
   function keyOf(vi, id) {
     return vi + ':' + id;
   }
@@ -119,39 +118,53 @@
     const key = keyOf(vi, id);
     let s = sources.get(key);
     if (!s) {
-      s = { key, vi, id, label: `${versionNames[vi] || 'V' + (vi + 1)} · 태블릿 ${id}`, online: false, history: [], queue: [], placed: false, item: null };
+      s = { key, vi, id, label: `${versionNames[vi] || 'V' + (vi + 1)} · 태블릿 ${id}`, online: false, history: [], queue: [], items: [] };
       sources.set(key, s);
     }
     return s;
   }
+  function isPlaced(s) {
+    return s.items.length > 0;
+  }
+  function totalItems() {
+    let n = 0;
+    sources.forEach((s) => (n += s.items.length));
+    return n;
+  }
 
   function renderSourceList() {
     sourceListEl.innerHTML = '';
-    const list = [...sources.values()].filter((s) => s.online || s.placed);
+    const list = [...sources.values()].filter((s) => s.online || isPlaced(s));
     trayCountEl.textContent = `${list.filter((s) => s.online).length}대 접속`;
     list.sort((a, b) => (a.vi - b.vi) || (a.id - b.id));
     list.forEach((s) => {
+      const placed = isPlaced(s);
       const row = document.createElement('button');
-      row.className = 'source-row' + (s.placed ? ' placed' : '') + (s.online ? '' : ' off');
+      row.className = 'source-row' + (placed ? ' placed' : '') + (s.online ? '' : ' off');
       row.innerHTML = `<span class="src-dot"></span><span class="src-name"></span><span class="src-state"></span>`;
       row.querySelector('.src-name').textContent = s.label;
-      row.querySelector('.src-state').textContent = s.placed ? '무대에 있음' : s.online ? '접속' : '끊김';
-      row.addEventListener('click', () => {
-        if (!s.placed) addToStage(s);
-      });
+      row.querySelector('.src-state').textContent = placed ? `무대 ${s.items.length}개` : s.online ? '접속' : '끊김';
+      row.title = placed ? '누르면 같은 서명을 하나 더 추가합니다' : '누르면 무대에 올립니다';
+      row.addEventListener('click', () => addToStage(s));
       sourceListEl.appendChild(row);
     });
   }
 
   // ---------- 무대 배치 ----------
-  function addToStage(s) {
-    if (s.placed) return;
+  function addToStage(s, opts) {
+    opts = opts || {};
     const aspect = s.aspect || 1.6;
-    const w = 300;
-    const h = Math.round(w / aspect);
-    const n = [...sources.values()].filter((o) => o.placed).length;
-    const x = clamp(24 + n * 26, 0, Math.max(0, stage.clientWidth - w - 10));
-    const y = clamp(24 + n * 22, 0, Math.max(0, stage.clientHeight - h - 10));
+    const w = opts.w || 300;
+    const h = opts.h || Math.round(w / aspect);
+    let x, y;
+    if (opts.x != null) {
+      x = clamp(opts.x, 0, Math.max(0, stage.clientWidth - 40));
+      y = clamp(opts.y, 0, Math.max(0, stage.clientHeight - 40));
+    } else {
+      const n = totalItems();
+      x = clamp(24 + n * 26, 0, Math.max(0, stage.clientWidth - w - 10));
+      y = clamp(24 + n * 22, 0, Math.max(0, stage.clientHeight - h - 10));
+    }
 
     const el = document.createElement('div');
     el.className = 'vitem';
@@ -159,6 +172,12 @@
 
     const canvas = document.createElement('canvas');
     el.appendChild(canvas);
+
+    const dup = document.createElement('button');
+    dup.className = 'item-dup';
+    dup.textContent = '⧉';
+    dup.title = '같은 서명 복제';
+    el.appendChild(dup);
 
     const remove = document.createElement('button');
     remove.className = 'item-remove';
@@ -179,24 +198,24 @@
     el.appendChild(label);
 
     stage.appendChild(el);
-    s.item = { el, canvas, ctx: canvas.getContext('2d'), drawer: null, x, y, w, h };
-    s.placed = true;
-    fitCanvas(s);
-    selectItem(s);
+    const item = { source: s, el, canvas, ctx: canvas.getContext('2d'), drawer: null, x, y, w, h };
+    s.items.push(item);
+    fitCanvas(item);
+    selectItem(item);
 
     // 이동 (본체/캔버스 드래그)
     el.addEventListener('pointerdown', (e) => {
-      if (e.target.classList.contains('rh') || e.target === remove) return;
-      selectItem(s);
+      if (e.target.classList.contains('rh') || e.target === remove || e.target === dup) return;
+      selectItem(item);
       el.style.zIndex = String(++zTop);
       const sx = e.clientX, sy = e.clientY;
-      const ox = s.item.x, oy = s.item.y;
+      const ox = item.x, oy = item.y;
       el.setPointerCapture(e.pointerId);
       const move = (ev) => {
-        s.item.x = clamp(ox + (ev.clientX - sx), -s.item.w + 40, stage.clientWidth - 40);
-        s.item.y = clamp(oy + (ev.clientY - sy), -s.item.h + 40, stage.clientHeight - 40);
-        el.style.left = s.item.x + 'px';
-        el.style.top = s.item.y + 'px';
+        item.x = clamp(ox + (ev.clientX - sx), -item.w + 40, stage.clientWidth - 40);
+        item.y = clamp(oy + (ev.clientY - sy), -item.h + 40, stage.clientHeight - 40);
+        el.style.left = item.x + 'px';
+        el.style.top = item.y + 'px';
       };
       const up = () => { el.removeEventListener('pointermove', move); el.removeEventListener('pointerup', up); };
       el.addEventListener('pointermove', move);
@@ -207,24 +226,24 @@
     el.querySelectorAll('.rh').forEach((rh) => {
       rh.addEventListener('pointerdown', (e) => {
         e.stopPropagation();
-        selectItem(s);
+        selectItem(item);
         const name = rh.dataset.h;
         const left = name.includes('w'), right = name.includes('e'), top = name.includes('n'), bottom = name.includes('s');
-        const start = { x: s.item.x, y: s.item.y, w: s.item.w, h: s.item.h };
+        const start = { x: item.x, y: item.y, w: item.w, h: item.h };
         const anchorRight = start.x + start.w, anchorBottom = start.y + start.h;
         const sx = e.clientX, sy = e.clientY;
         rh.setPointerCapture(e.pointerId);
         const move = (ev) => {
           const dx = ev.clientX - sx, dy = ev.clientY - sy;
-          let { x, y, w, h } = start;
-          if (right) w = Math.max(30, start.w + dx);
-          if (left) { w = Math.max(30, start.w - dx); x = anchorRight - w; }
-          if (bottom) h = Math.max(30, start.h + dy);
-          if (top) { h = Math.max(30, start.h - dy); y = anchorBottom - h; }
-          s.item.x = x; s.item.y = y; s.item.w = w; s.item.h = h;
+          let { x, y, w: nw, h: nh } = start;
+          if (right) nw = Math.max(30, start.w + dx);
+          if (left) { nw = Math.max(30, start.w - dx); x = anchorRight - nw; }
+          if (bottom) nh = Math.max(30, start.h + dy);
+          if (top) { nh = Math.max(30, start.h - dy); y = anchorBottom - nh; }
+          item.x = x; item.y = y; item.w = nw; item.h = nh;
           el.style.left = x + 'px'; el.style.top = y + 'px';
-          el.style.width = w + 'px'; el.style.height = h + 'px';
-          fitCanvas(s);
+          el.style.width = nw + 'px'; el.style.height = nh + 'px';
+          fitCanvas(item);
         };
         const up = () => { rh.removeEventListener('pointermove', move); rh.removeEventListener('pointerup', up); };
         rh.addEventListener('pointermove', move);
@@ -232,82 +251,85 @@
       });
     });
 
+    dup.addEventListener('click', (e) => {
+      e.stopPropagation();
+      // 같은 서명을 하나 더(같은 크기, 살짝 옆으로) 올린다.
+      addToStage(s, { x: item.x + 30, y: item.y + 30, w: item.w, h: item.h });
+    });
     remove.addEventListener('click', (e) => {
       e.stopPropagation();
-      removeFromStage(s);
+      removeItem(item);
     });
 
     renderSourceList();
+    return item;
   }
 
-  function removeFromStage(s) {
-    if (s.item) s.item.el.remove();
-    s.item = null;
-    s.placed = false;
-    if (selectedSource === s) selectedSource = null;
+  function removeItem(item) {
+    item.el.remove();
+    const arr = item.source.items;
+    const i = arr.indexOf(item);
+    if (i >= 0) arr.splice(i, 1);
+    if (selectedItem === item) selectedItem = null;
     renderSourceList();
   }
 
-  let selectedSource = null;
-  function selectItem(s) {
-    selectedSource = s;
-    sources.forEach((o) => { if (o.item) o.item.el.classList.toggle('selected', o === s); });
+  function selectItem(item) {
+    selectedItem = item;
+    sources.forEach((s) => s.items.forEach((it) => it.el.classList.toggle('selected', it === item)));
   }
 
   // 캔버스 백킹 크기를 박스에 맞추고, 지금까지의 획을 다시 그린다(자유 변형 반영).
-  function fitCanvas(s) {
-    const it = s.item;
-    if (!it) return;
+  function fitCanvas(item) {
     const dpr = window.devicePixelRatio || 1;
-    const cw = Math.max(1, Math.round(it.w));
-    const ch = Math.max(1, Math.round(it.h));
-    it.canvas.style.width = cw + 'px';
-    it.canvas.style.height = ch + 'px';
-    it.canvas.width = Math.round(cw * dpr);
-    it.canvas.height = Math.round(ch * dpr);
-    replay(s);
+    const cw = Math.max(1, Math.round(item.w));
+    const ch = Math.max(1, Math.round(item.h));
+    item.canvas.style.width = cw + 'px';
+    item.canvas.style.height = ch + 'px';
+    item.canvas.width = Math.round(cw * dpr);
+    item.canvas.height = Math.round(ch * dpr);
+    replay(item);
   }
 
-  function replay(s) {
-    const it = s.item;
-    if (!it) return;
-    const ctx = it.ctx;
-    ctx.clearRect(0, 0, it.canvas.width, it.canvas.height);
+  function replay(item) {
+    const ctx = item.ctx;
+    ctx.clearRect(0, 0, item.canvas.width, item.canvas.height);
     ctx.lineJoin = 'round';
     ctx.lineCap = 'round';
     ctx.strokeStyle = inkColor;
     const drawer = createSmoothDrawer(ctx);
-    for (const p of s.history) {
-      const px = p.x * it.canvas.width;
-      const py = p.y * it.canvas.height;
-      const width = p.w ? p.w * it.canvas.width : undefined;
+    for (const p of item.source.history) {
+      const px = p.x * item.canvas.width;
+      const py = p.y * item.canvas.height;
+      const width = p.w ? p.w * item.canvas.width : undefined;
       if (p.type === 'start') drawer.reset(px, py, width);
       else if (p.type === 'point') drawer.addPoint(px, py, width);
     }
-    it.drawer = drawer;
+    item.drawer = drawer;
   }
 
   function retintAll() {
-    sources.forEach((s) => { if (s.placed) replay(s); });
+    sources.forEach((s) => s.items.forEach(replay));
   }
 
   // ---------- 실시간 그리기 루프 ----------
   function tick() {
     sources.forEach((s) => {
-      if (!s.placed || !s.item) return;
+      if (!s.items.length) return;
       const backlog = s.queue.length;
       if (backlog === 0) return;
       const drain = backlog > 30 ? backlog - 8 : Math.min(4, backlog);
-      const it = s.item;
       for (let i = 0; i < drain; i++) {
         const p = s.queue.shift();
         if (p.type === 'start' || p.type === 'point') s.history.push(p);
-        if (!it.drawer) continue;
-        const px = p.x * it.canvas.width;
-        const py = p.y * it.canvas.height;
-        const width = p.w ? p.w * it.canvas.width : undefined;
-        if (p.type === 'start') it.drawer.reset(px, py, width);
-        else if (p.type === 'point') it.drawer.addPoint(px, py, width);
+        s.items.forEach((it) => {
+          if (!it.drawer) return;
+          const px = p.x * it.canvas.width;
+          const py = p.y * it.canvas.height;
+          const width = p.w ? p.w * it.canvas.width : undefined;
+          if (p.type === 'start') it.drawer.reset(px, py, width);
+          else if (p.type === 'point') it.drawer.addPoint(px, py, width);
+        });
       }
     });
     requestAnimationFrame(tick);
@@ -321,26 +343,29 @@
         const s = ensureSource(vi, t.id);
         s.online = !!t.online;
         if (t.aspect) s.aspect = t.aspect;
-        if (autoAdd && t.online && !s.placed) addToStage(s);
+        if (autoAdd && t.online && !isPlaced(s)) addToStage(s);
       });
       renderSourceList();
     } else if (msg.type === 'stroke') {
       const s = ensureSource(vi, msg.id);
       s.online = true;
       s.queue.push(...msg.points);
-      if (autoAdd && !s.placed) addToStage(s);
+      if (autoAdd && !isPlaced(s)) addToStage(s);
     } else if (msg.type === 'clear') {
       const s = ensureSource(vi, msg.id);
       s.queue.length = 0;
       s.history.length = 0;
-      if (s.item) s.item.ctx.clearRect(0, 0, s.item.canvas.width, s.item.canvas.height), (s.item.drawer = createSmoothDrawer(s.item.ctx)), (s.item.ctx.strokeStyle = inkColor);
+      s.items.forEach((it) => {
+        it.ctx.clearRect(0, 0, it.canvas.width, it.canvas.height);
+        it.drawer = createSmoothDrawer(it.ctx);
+        it.ctx.strokeStyle = inkColor;
+      });
     } else if (msg.type === 'auth_error') {
       loginError.textContent = (versionNames[vi] || 'V' + (vi + 1)) + ' 연결 실패: ' + (msg.message || '');
     }
   }
 
   function connectAll() {
-    // 기존 연결 정리
     conns.forEach((c) => { c.closedByUs = true; if (c.timer) clearTimeout(c.timer); try { c.ws && c.ws.close(); } catch {} });
     conns = versionUrls.map((url, index) => {
       const c = { url, index, ws: null, timer: null, closedByUs: false };
@@ -360,7 +385,6 @@
     });
   }
 
-  // 각 버전 이름을 미리 가져온다(표시용). /api/status는 CORS 허용.
   function loadVersionNames() {
     return Promise.all(
       versionUrls.map((url, i) =>
@@ -408,10 +432,10 @@
   });
   document.getElementById('autoAdd').addEventListener('change', (e) => { autoAdd = e.target.checked; });
   document.getElementById('addAllBtn').addEventListener('click', () => {
-    sources.forEach((s) => { if (s.online && !s.placed) addToStage(s); });
+    sources.forEach((s) => { if (s.online && !isPlaced(s)) addToStage(s); });
   });
   document.getElementById('clearStageBtn').addEventListener('click', () => {
-    [...sources.values()].forEach((s) => { if (s.placed) removeFromStage(s); });
+    sources.forEach((s) => s.items.slice().forEach(removeItem));
   });
   document.getElementById('versionsBtn').addEventListener('click', () => {
     const box = document.getElementById('versionsBox');
@@ -426,10 +450,10 @@
     loadVersionNames().then(connectAll);
   });
   stage.addEventListener('pointerdown', (e) => {
-    if (e.target === stage) { selectedSource = null; sources.forEach((o) => { if (o.item) o.item.el.classList.remove('selected'); }); }
+    if (e.target === stage) { selectedItem = null; sources.forEach((s) => s.items.forEach((it) => it.el.classList.remove('selected'))); }
   });
 
-  // 출력 모드: 무대만 크게 (방송/키잉용). 선택한 모니터로 전체화면을 띄운다.
+  // 출력 모드
   const exitOutputBtn = document.getElementById('exitOutput');
   let screenDetails = null;
   let targetScreen = null;
@@ -447,14 +471,12 @@
     exitOutputBtn.style.display = on ? 'block' : 'none';
     if (on) fullscreenOut();
     else if (document.fullscreenElement) { document.exitFullscreen().catch(() => {}); }
-    setTimeout(applyStageSize, 60); // 레이아웃이 바뀐 뒤 고정 화면비 다시 계산
+    setTimeout(applyStageSize, 60);
   }
   document.getElementById('outputBtn').addEventListener('click', () => setOutput(true));
   exitOutputBtn.addEventListener('click', () => setOutput(false));
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') setOutput(false); });
 
-  // 출력할 모니터 선택 (여러 대 연결 시). 브라우저의 창 관리 API가 있으면
-  // 모니터 목록을 보여주고, 선택한 모니터로 출력 모드 전체화면을 띄운다.
   const screenSelect = document.getElementById('screenSelect');
   document.getElementById('screenBtn').addEventListener('click', async () => {
     if (!('getScreenDetails' in window)) {
@@ -485,13 +507,11 @@
   });
   screenSelect.addEventListener('change', () => {
     if (screenDetails) targetScreen = screenDetails.screens[parseInt(screenSelect.value, 10)] || null;
-    // 이미 출력 중이면 선택한 모니터로 다시 전체화면
     if (editorEl.classList.contains('output-mode')) fullscreenOut();
   });
 
   // ---------- 로그인 ----------
   function enter() {
-    // 현재 버전으로 비번 확인 후 진입
     fetch(`/api/status?pw=${encodeURIComponent(pw)}`, { cache: 'no-store' })
       .then((r) => {
         if (r.status === 401) throw new Error('auth');
@@ -499,7 +519,6 @@
       })
       .then(() => {
         sessionStorage.setItem('adminPassword', pw);
-        // 이 기기에서는 다음부터 비밀번호 없이 바로 들어오도록 기억한다.
         try { localStorage.setItem('veditPassword', pw); } catch {}
         loginEl.style.display = 'none';
         editorEl.style.display = 'flex';
@@ -521,8 +540,6 @@
   });
   passwordInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') document.getElementById('loginBtn').click(); });
 
-  // 비밀번호 없이 접속: 링크의 ?pw= 값, 이 기기에 기억된 값, 또는 관리자 세션 순으로
-  // 자동 로그인한다. 한 번만 설정해두면 다음부터는 로그인 화면 없이 바로 들어온다.
   let autoPw = '';
   try { autoPw = new URLSearchParams(location.search).get('pw') || ''; } catch {}
   if (!autoPw) { try { autoPw = localStorage.getItem('veditPassword') || ''; } catch {} }
