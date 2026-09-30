@@ -569,6 +569,8 @@ wss.on('connection', (ws) => {
   ws.lastSeen = Date.now();
   ws.role = null;
   ws.tabletId = null;
+  // 작은 서명 패킷이 지연 없이 즉시 전달되도록 Nagle 알고리즘을 끈다(지연 감소).
+  try { ws._socket.setNoDelay(true); } catch {}
 
   ws.on('pong', () => {
     ws.isAlive = true;
