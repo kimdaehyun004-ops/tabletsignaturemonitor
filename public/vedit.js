@@ -603,8 +603,28 @@
   }
   document.getElementById('outputBtn').addEventListener('click', () => setOutput(true));
   exitOutputBtn.addEventListener('click', () => setOutput(false));
+  // 화면 안(상단)에 뜨는 확인 바. 브라우저 기본 confirm()은 출력 모드(전체화면)를
+  // 풀어버려 크로마키 설정이 틀어지므로, 전체화면을 유지하는 자체 확인 UI를 쓴다.
+  const confirmBar = document.getElementById('confirmBar');
+  const confirmMsg = document.getElementById('confirmMsg');
+  let confirmCb = null;
+  function askConfirm(msg, onYes) {
+    confirmMsg.textContent = msg;
+    confirmCb = onYes;
+    confirmBar.style.display = 'flex';
+  }
+  document.getElementById('confirmYes').addEventListener('click', () => {
+    confirmBar.style.display = 'none';
+    const cb = confirmCb; confirmCb = null;
+    if (cb) cb();
+  });
+  document.getElementById('confirmNo').addEventListener('click', () => {
+    confirmBar.style.display = 'none';
+    confirmCb = null;
+  });
+
   clearOutBtn.addEventListener('click', () => {
-    if (confirm('무대에 있는 모든 태블릿의 서명을 지울까요? (태블릿 화면도 비워집니다)')) clearAllTabletSignatures();
+    askConfirm('무대에 있는 모든 태블릿의 서명을 지울까요? (태블릿 화면도 비워집니다)', clearAllTabletSignatures);
   });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') setOutput(false); });
 
