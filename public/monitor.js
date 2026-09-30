@@ -402,7 +402,8 @@
     for (const c of cells.values()) {
       const backlog = c.queue.length;
       if (backlog === 0) continue;
-      const drainCount = backlog > 30 ? backlog - 8 : Math.min(4, backlog);
+      // 지연(버퍼링) 최소화: 매 프레임 거의 다 그리되, 한꺼번에 몰려도 멈추지 않게 상한을 둔다.
+      const drainCount = Math.min(backlog, 24);
       for (let i = 0; i < drainCount; i++) {
         const p = c.queue.shift();
         const px = p.x * c.canvas.width;

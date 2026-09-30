@@ -439,7 +439,9 @@
       if (!s.items.length) return;
       const backlog = s.queue.length;
       if (backlog === 0) return;
-      const drain = backlog > 30 ? backlog - 8 : Math.min(4, backlog);
+      // 지연(버퍼링)을 최소화하기 위해 매 프레임 밀린 점을 거의 다 그린다.
+      // 단, 네트워크 지연으로 한꺼번에 몰려 들어와도 한 프레임이 멈추지 않도록 상한을 둔다.
+      const drain = Math.min(backlog, 24);
       for (let i = 0; i < drain; i++) {
         const p = s.queue.shift();
         if (p.type === 'start' || p.type === 'point') s.history.push(p);
