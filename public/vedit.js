@@ -47,6 +47,7 @@
   let autoAdd = true;
   let zTop = 1;
   let stageAspect = 0; // 0 = 자유(채우기), 그 외 = 가로/세로 비율
+  let lastStageW = 0, lastStageH = 0; // 무대 크기 변화 추적(서명칸 비례 스케일용)
 
   const sources = new Map(); // key `${vi}:${id}` -> source
   const versionNames = []; // index -> 표시 이름
@@ -208,25 +209,48 @@
       stage.style.width = '';
       stage.style.height = '';
       stage.style.margin = '';
-      return;
+    } else {
+      wrap.classList.add('fixed-res');
+      stage.style.flex = 'none';
+      stage.style.margin = 'auto';
+      const outputMode = editorEl.classList.contains('output-mode');
+      const hint = wrap.querySelector('.stage-hint');
+      const hintH = outputMode || !hint ? 0 : hint.offsetHeight + 8;
+      const pad = outputMode ? 0 : 24;
+      const availW = wrap.clientWidth - pad;
+      const availH = wrap.clientHeight - hintH - pad;
+      let w = availW;
+      let h = w / stageAspect;
+      if (h > availH) {
+        h = availH;
+        w = h * stageAspect;
+      }
+      stage.style.width = Math.max(1, Math.floor(w)) + 'px';
+      stage.style.height = Math.max(1, Math.floor(h)) + 'px';
     }
-    wrap.classList.add('fixed-res');
-    stage.style.flex = 'none';
-    stage.style.margin = 'auto';
-    const outputMode = editorEl.classList.contains('output-mode');
-    const hint = wrap.querySelector('.stage-hint');
-    const hintH = outputMode || !hint ? 0 : hint.offsetHeight + 8;
-    const pad = outputMode ? 0 : 24;
-    const availW = wrap.clientWidth - pad;
-    const availH = wrap.clientHeight - hintH - pad;
-    let w = availW;
-    let h = w / stageAspect;
-    if (h > availH) {
-      h = availH;
-      w = h * stageAspect;
+    // 무대 크기가 바뀌면(편집↔출력 모드 전환, 창 크기 변경 등) 서명칸도 같은 비율로
+    // 함께 스케일해서 상대 배치를 그대로 유지한다 → 출력도 디자인과 똑같이 나온다.
+    const cw = stage.clientWidth, ch = stage.clientHeight;
+    if (cw > 0 && ch > 0) {
+      if (lastStageW > 0 && lastStageH > 0 && (cw !== lastStageW || ch !== lastStageH)) {
+        rescaleItems(cw / lastStageW, ch / lastStageH);
+      }
+      lastStageW = cw;
+      lastStageH = ch;
     }
-    stage.style.width = Math.max(1, Math.floor(w)) + 'px';
-    stage.style.height = Math.max(1, Math.floor(h)) + 'px';
+  }
+  function rescaleItems(sx, sy) {
+    sources.forEach((s) => s.items.forEach((it) => {
+      it.x = Math.round(it.x * sx);
+      it.y = Math.round(it.y * sy);
+      it.w = Math.max(10, Math.round(it.w * sx));
+      it.h = Math.max(10, Math.round(it.h * sy));
+      it.el.style.left = it.x + 'px';
+      it.el.style.top = it.y + 'px';
+      it.el.style.width = it.w + 'px';
+      it.el.style.height = it.h + 'px';
+      fitCanvas(it);
+    }));
   }
   window.addEventListener('resize', applyStageSize);
 
@@ -738,7 +762,9 @@
     const name = (document.getElementById('presetName').value || '').trim();
     if (!name) { alert('프리셋 이름을 입력하세요.'); return; }
     const slots = [];
-    sources.forEach((s) => s.items.forEach((it) => slots.push({ vi: s.vi, id: s.id, x: it.x, y: it.y, w: it.w, h: it.h })));
+    const W = stage.clientWidth || 1, H = stage.clientHeight || 1;
+    // 위치·크기를 무대 대비 비율(0~1)로 저장해, 불러올 때 무대 크기가 달라도 똑같은 배치가 되게 한다.
+    sources.forEach((s) => s.items.forEach((it) => slots.push({ vi: s.vi, id: s.id, fx: it.x / W, fy: it.y / H, fw: it.w / W, fh: it.h / H })));
     const presets = loadPresets();
     presets[name] = { bg: bgColor, ink: inkColor, resSel: resSelect.value, resCustomVal: resCustom.value, aspect: stageAspect, slots };
     savePresets(presets);
@@ -762,12 +788,17 @@
     resCustom.value = p.resCustomVal || '';
     resCustom.style.display = resSelect.value === 'custom' ? 'inline-block' : 'none';
     stageAspect = p.aspect || 0;
-    applyStageSize();
-    // 기존 배치 비우고 프리셋 배치로 재구성 (접속 전이어도 칸은 만들어 둔다)
+    // 먼저 기존 배치를 비우고 화면비를 적용한 뒤, 현재 무대 크기에 맞춰 비율대로 배치한다.
     sources.forEach((s) => s.items.slice().forEach(removeItem));
+    applyStageSize();
+    const W = stage.clientWidth || 1, H = stage.clientHeight || 1;
     (p.slots || []).forEach((sl) => {
       const s = ensureSource(sl.vi, sl.id);
-      addToStage(s, { x: sl.x, y: sl.y, w: sl.w, h: sl.h });
+      // 신버전(비율 fx/fy/fw/fh) 우선, 구버전(절대 x/y/w/h) 호환.
+      const box = sl.fx != null
+        ? { x: Math.round(sl.fx * W), y: Math.round(sl.fy * H), w: Math.round(sl.fw * W), h: Math.round(sl.fh * H) }
+        : { x: sl.x, y: sl.y, w: sl.w, h: sl.h };
+      addToStage(s, box);
     });
     selectedItem = null;
     sources.forEach((s) => s.items.forEach((it) => it.el.classList.remove('selected')));
