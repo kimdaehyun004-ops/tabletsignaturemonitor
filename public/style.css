@@ -966,3 +966,8 @@ html, body {
 .editor-stage.show-frames .vitem { outline: 2px dashed rgba(255, 255, 255, 0.75); outline-offset: -1px; }
 .editor-stage.show-frames .vitem .vitem-label { opacity: 1; }
 .editor-toolbar button#framesBtn.active { background: #2563eb; color: #fff; border-color: #2563eb; }
+
+/* vedit: 스마트 정렬 안내선(가이드) */
+.snap-guide { position: absolute; z-index: 9; pointer-events: none; }
+.snap-guide-v { top: 0; bottom: 0; width: 0; border-left: 1px solid #ff2d78; }
+.snap-guide-h { left: 0; right: 0; height: 0; border-top: 1px solid #ff2d78; }

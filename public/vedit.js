@@ -79,21 +79,47 @@
     return Math.min(max, Math.max(min, v));
   }
 
-  // 드래그 중 다른 서명(또는 무대 중앙)과 세로 중심이 가까우면 같은 높이에 착 붙인다.
-  // → 손으로 옮겨도 가로로 반듯하게 정렬된다.
-  function snapItemY(item) {
-    const SNAP = 9;
-    const cy = item.y + item.h / 2;
-    let target = null;
-    if (Math.abs(cy - stage.clientHeight / 2) < SNAP) target = stage.clientHeight / 2;
-    if (target === null) {
-      sources.forEach((s) => s.items.forEach((it) => {
-        if (it === item || target !== null) return;
-        const oc = it.y + it.h / 2;
-        if (Math.abs(cy - oc) < SNAP) target = oc;
-      }));
-    }
-    if (target !== null) item.y = Math.round(target - item.h / 2);
+  // 포토샵/PPT식 스마트 정렬: 드래그 중 다른 서명의 가장자리(좌/중앙/우, 상/중앙/하)와
+  // 무대 중앙·가장자리에 가까우면 딱 붙이고(마그네틱), 맞춰진 기준선을 안내선으로 보여준다.
+  const SNAP = 7;
+  let guideV = null, guideH = null;
+  function clearGuides() {
+    if (guideV) { guideV.remove(); guideV = null; }
+    if (guideH) { guideH.remove(); guideH = null; }
+  }
+  function showGuideV(x) {
+    if (!guideV) { guideV = document.createElement('div'); guideV.className = 'snap-guide snap-guide-v'; stage.appendChild(guideV); }
+    guideV.style.left = x + 'px';
+  }
+  function showGuideH(y) {
+    if (!guideH) { guideH = document.createElement('div'); guideH.className = 'snap-guide snap-guide-h'; stage.appendChild(guideH); }
+    guideH.style.top = y + 'px';
+  }
+  function snapItem(item) {
+    // 후보 기준선(무대 + 다른 서명들의 좌/중앙/우, 상/중앙/하)
+    const xs = [0, stage.clientWidth / 2, stage.clientWidth];
+    const ys = [0, stage.clientHeight / 2, stage.clientHeight];
+    sources.forEach((s) => s.items.forEach((it) => {
+      if (it === item) return;
+      xs.push(it.x, it.x + it.w / 2, it.x + it.w);
+      ys.push(it.y, it.y + it.h / 2, it.y + it.h);
+    }));
+    // X: 내 좌/중앙/우를 후보에 맞춘다
+    const myX = [item.x, item.x + item.w / 2, item.x + item.w];
+    let bestX = null;
+    myX.forEach((val) => xs.forEach((tx) => {
+      const d = Math.abs(val - tx);
+      if (d <= SNAP && (!bestX || d < bestX.d)) bestX = { d, delta: tx - val, line: tx };
+    }));
+    if (bestX) { item.x = Math.round(item.x + bestX.delta); showGuideV(Math.round(bestX.line)); } else if (guideV) { guideV.remove(); guideV = null; }
+    // Y
+    const myY = [item.y, item.y + item.h / 2, item.y + item.h];
+    let bestY = null;
+    myY.forEach((val) => ys.forEach((ty) => {
+      const d = Math.abs(val - ty);
+      if (d <= SNAP && (!bestY || d < bestY.d)) bestY = { d, delta: ty - val, line: ty };
+    }));
+    if (bestY) { item.y = Math.round(item.y + bestY.delta); showGuideH(Math.round(bestY.line)); } else if (guideH) { guideH.remove(); guideH = null; }
   }
 
   // 무대의 모든 서명을 한 줄로(가로) 반듯하게 배치한다. 각자의 현재 비율은 유지한다.
@@ -284,13 +310,14 @@
       const move = (ev) => {
         item.x = clamp(ox + (ev.clientX - sx), -item.w + 40, stage.clientWidth - 40);
         item.y = clamp(oy + (ev.clientY - sy), -item.h + 40, stage.clientHeight - 40);
-        snapItemY(item);
+        snapItem(item);
         el.style.left = item.x + 'px';
         el.style.top = item.y + 'px';
       };
-      const up = () => { el.removeEventListener('pointermove', move); el.removeEventListener('pointerup', up); };
+      const up = () => { clearGuides(); el.removeEventListener('pointermove', move); el.removeEventListener('pointerup', up); el.removeEventListener('pointercancel', up); };
       el.addEventListener('pointermove', move);
       el.addEventListener('pointerup', up);
+      el.addEventListener('pointercancel', up);
     });
 
     // 자유 변형 (변/모서리 8방향, 비율 잠금 없음 → 찌그러뜨리기 가능)
@@ -561,33 +588,24 @@
     addToStage(s);
   }
 
-  // 무대의 모든 칸을 격자로 배치한다(18개 등 여러 칸을 한눈에).
+  // 무대의 모든 칸을 격자로 "위치만" 정렬한다(크기는 그대로 유지).
   function arrangeGrid() {
     const items = [];
     sources.forEach((s) => s.items.forEach((it) => items.push(it)));
     if (!items.length) return;
     const n = items.length;
-    const pad = 12;
+    const pad = 16;
     const cols = Math.max(1, Math.round(Math.sqrt(n * (stage.clientWidth / Math.max(1, stage.clientHeight)))));
-    const rows = Math.ceil(n / cols);
-    const cellW = (stage.clientWidth - pad * (cols + 1)) / cols;
-    const cellH = (stage.clientHeight - pad * (rows + 1)) / rows;
+    const stepX = Math.max.apply(null, items.map((it) => it.w)) + pad;
+    const stepY = Math.max.apply(null, items.map((it) => it.h)) + pad;
     items.forEach((it, i) => {
       const r = Math.floor(i / cols);
       const c = i % cols;
-      const aspect = it.h > 0 ? it.w / it.h : 1.6;
-      let w = cellW;
-      let h = w / aspect;
-      if (h > cellH) { h = cellH; w = h * aspect; }
-      it.w = Math.round(w);
-      it.h = Math.round(h);
-      it.x = Math.round(pad + c * (cellW + pad) + (cellW - w) / 2);
-      it.y = Math.round(pad + r * (cellH + pad) + (cellH - h) / 2);
+      it.x = Math.round(pad + c * stepX);
+      it.y = Math.round(pad + r * stepY);
       it.el.style.left = it.x + 'px';
       it.el.style.top = it.y + 'px';
-      it.el.style.width = it.w + 'px';
-      it.el.style.height = it.h + 'px';
-      fitCanvas(it);
+      // 크기는 바꾸지 않는다.
     });
   }
 
@@ -615,8 +633,8 @@
     stageAspect = parseFloat(resSelect.value) || 0;
     applyStageSize();
   });
-  resCustom.addEventListener('change', () => {
-    const m = resCustom.value.match(/(\d+(?:\.\d+)?)\s*[x×:]\s*(\d+(?:\.\d+)?)/);
+  function applyCustomRes() {
+    const m = resCustom.value.match(/(\d+(?:\.\d+)?)\s*[x×:\s]\s*(\d+(?:\.\d+)?)/);
     if (m) {
       const a = parseFloat(m[1]) / parseFloat(m[2]);
       if (isFinite(a) && a > 0) {
@@ -624,7 +642,9 @@
         applyStageSize();
       }
     }
-  });
+  }
+  resCustom.addEventListener('input', applyCustomRes);
+  resCustom.addEventListener('change', applyCustomRes);
   document.getElementById('autoAdd').addEventListener('change', (e) => { autoAdd = e.target.checked; });
   document.getElementById('addAllBtn').addEventListener('click', () => {
     sources.forEach((s) => { if (s.online && !isPlaced(s)) addToStage(s); });
