@@ -83,8 +83,14 @@
   // ---------- 배경 이미지 (디자인용: 이 위에 서명을 배치. 출력 모드에선 자동으로 숨겨져 그린스크린이 된다) ----------
   const stageBg = document.getElementById('stageBg');
   const bgImgToggle = document.getElementById('bgImgToggle');
+  const bgImgOut = document.getElementById('bgImgOut');
   function showBgImage(on) {
     stageBg.style.display = on && stageBg.getAttribute('src') ? 'block' : 'none';
+    if (bgImgOut) bgImgOut.classList.toggle('active', !!(on && stageBg.getAttribute('src')));
+  }
+  function setBgImageOn(on) {
+    bgImgToggle.checked = on;
+    showBgImage(on);
   }
   function readFileAsDataUrl(file) {
     return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(file); });
@@ -114,6 +120,7 @@
     e.target.value = '';
   });
   bgImgToggle.addEventListener('change', () => showBgImage(bgImgToggle.checked));
+  if (bgImgOut) bgImgOut.addEventListener('click', () => setBgImageOn(!bgImgToggle.checked));
   document.getElementById('bgImgClear').addEventListener('click', () => {
     stageBg.removeAttribute('src');
     stageBg.style.display = 'none';
@@ -849,6 +856,7 @@
     clearOutBtn.style.display = on ? 'block' : 'none';
     if (framesOut) framesOut.style.display = on ? 'block' : 'none';
     if (addSlotOut) addSlotOut.style.display = on ? 'block' : 'none';
+    if (bgImgOut) bgImgOut.style.display = on ? 'block' : 'none';
     if (on) fullscreenOut();
     else if (document.fullscreenElement) { document.exitFullscreen().catch(() => {}); }
     setTimeout(applyStageSize, 60);
