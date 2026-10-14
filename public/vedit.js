@@ -79,6 +79,47 @@
     return Math.min(max, Math.max(min, v));
   }
 
+  // ---------- 배경 이미지 (디자인용: 이 위에 서명을 배치. 출력 모드에선 자동으로 숨겨져 그린스크린이 된다) ----------
+  const stageBg = document.getElementById('stageBg');
+  const bgImgToggle = document.getElementById('bgImgToggle');
+  function showBgImage(on) {
+    stageBg.style.display = on && stageBg.getAttribute('src') ? 'block' : 'none';
+  }
+  function readFileAsDataUrl(file) {
+    return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(file); });
+  }
+  function setBgImage(dataUrl, setAspect) {
+    stageBg.onload = () => {
+      if (setAspect && stageBg.naturalWidth && stageBg.naturalHeight) {
+        // 무대 화면비를 이미지 비율과 똑같이 맞춘다 → 배치한 그대로 그린스크린(출력)에서도 유지.
+        stageAspect = stageBg.naturalWidth / stageBg.naturalHeight;
+        resSelect.value = 'custom';
+        resCustom.style.display = 'inline-block';
+        if (resApply) resApply.style.display = 'inline-block';
+        resCustom.value = stageBg.naturalWidth + 'x' + stageBg.naturalHeight;
+        applyStageSize();
+      }
+    };
+    stageBg.src = dataUrl;
+    bgImgToggle.checked = true;
+    showBgImage(true);
+    try { localStorage.setItem('veditBgImage', dataUrl); } catch {}
+  }
+  document.getElementById('bgImgPick').addEventListener('click', () => document.getElementById('bgImgFile').click());
+  document.getElementById('bgImgFile').addEventListener('change', async (e) => {
+    const f = e.target.files && e.target.files[0];
+    if (!f) return;
+    try { setBgImage(await readFileAsDataUrl(f), true); } catch {}
+    e.target.value = '';
+  });
+  bgImgToggle.addEventListener('change', () => showBgImage(bgImgToggle.checked));
+  document.getElementById('bgImgClear').addEventListener('click', () => {
+    stageBg.removeAttribute('src');
+    stageBg.style.display = 'none';
+    bgImgToggle.checked = false;
+    try { localStorage.removeItem('veditBgImage'); } catch {}
+  });
+
   // 포토샵/PPT식 스마트 정렬: 드래그 중 다른 서명의 가장자리(좌/중앙/우, 상/중앙/하)와
   // 무대 중앙·가장자리에 가까우면 딱 붙이고(마그네틱), 맞춰진 기준선을 안내선으로 보여준다.
   const SNAP = 7;
@@ -855,6 +896,11 @@
         editorEl.style.display = 'flex';
         applyBg();
         applyStageSize();
+        // 이전에 쓰던 배경 이미지가 있으면 복원(디자인용).
+        try {
+          const savedImg = localStorage.getItem('veditBgImage');
+          if (savedImg) { stageBg.src = savedImg; bgImgToggle.checked = true; showBgImage(true); }
+        } catch {}
         return loadVersionNames();
       })
       .then(connectAll)

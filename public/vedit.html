@@ -38,6 +38,14 @@
       </span>
 
       <span class="tb-group">
+        <span class="tb-label">배경 이미지</span>
+        <input type="file" id="bgImgFile" accept="image/*" style="display:none;" />
+        <button id="bgImgPick" title="디자인용 배경 이미지를 불러옵니다 (출력 시엔 자동으로 그린스크린)">이미지 열기</button>
+        <label class="tb-label" style="cursor:pointer;"><input type="checkbox" id="bgImgToggle" /> 배경 보기</label>
+        <button id="bgImgClear" class="danger">제거</button>
+      </span>
+
+      <span class="tb-group">
         <label class="tb-label" style="cursor:pointer;"><input type="checkbox" id="autoAdd" checked /> 새 접속 자동 추가</label>
         <button id="framesBtn" title="접속된 모든 서명칸을 테두리와 함께 표시">칸 보기</button>
         <button id="addSlotBtn" title="빈 서명칸을 하나 추가합니다 (태블릿은 칸의 드롭다운에서 지정)">칸 미리 만들기</button>
@@ -92,7 +100,7 @@
       </div>
 
       <div class="editor-stagewrap">
-        <div id="stage" class="editor-stage"></div>
+        <div id="stage" class="editor-stage"><img id="stageBg" class="stage-bg" alt="" style="display:none;" /></div>
         <p class="stage-hint">본체를 끌어 이동 · 모서리/변을 끌어 자유 변형(좌우·상하 찌그러뜨리기) · 클릭해 선택. "출력 모드"를 누르면 이 무대만 크게 표시됩니다(방송용).</p>
       </div>
     </div>

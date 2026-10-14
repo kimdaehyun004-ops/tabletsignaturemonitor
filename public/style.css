@@ -976,3 +976,7 @@ html, body {
 .exit-output.out-left { left: 10px; right: auto; }
 .exit-output.out-left2 { left: 120px; right: auto; }
 .exit-output.active { background: rgba(37, 99, 235, 0.9); border-color: #2563eb; }
+
+/* vedit: 디자인용 배경 이미지 레이어 (서명 아래). 출력 모드에선 숨겨 그린스크린이 보이게 한다. */
+.stage-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: fill; z-index: 0; pointer-events: none; user-select: none; }
+.editor-page.output-mode .stage-bg { display: none !important; }
