@@ -624,15 +624,16 @@
   document.getElementById('inkCustom').addEventListener('input', (e) => { inkColor = e.target.value; retintAll(); });
   const resSelect = document.getElementById('resSelect');
   const resCustom = document.getElementById('resCustom');
+  const resApply = document.getElementById('resApply');
   resSelect.addEventListener('change', () => {
-    if (resSelect.value === 'custom') {
-      resCustom.style.display = 'inline-block';
-      return;
-    }
-    resCustom.style.display = 'none';
+    const custom = resSelect.value === 'custom';
+    resCustom.style.display = custom ? 'inline-block' : 'none';
+    resApply.style.display = custom ? 'inline-block' : 'none';
+    if (custom) { applyCustomRes(); return; }
     stageAspect = parseFloat(resSelect.value) || 0;
     applyStageSize();
   });
+  resApply.addEventListener('click', applyCustomRes);
   function applyCustomRes() {
     const m = resCustom.value.match(/(\d+(?:\.\d+)?)\s*[x×:\s]\s*(\d+(?:\.\d+)?)/);
     if (m) {
