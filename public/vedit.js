@@ -50,6 +50,7 @@
 
   const sources = new Map(); // key `${vi}:${id}` -> source
   const versionNames = []; // index -> 표시 이름
+  const versionTabletCount = []; // index -> 그 버전의 태블릿 개수
   let conns = []; // per version { url, index, ws, timer, closedByUs }
   let selectedItem = null;
 
@@ -341,20 +342,34 @@
   }
 
   // 무대의 한 자리(박스)는 그대로 두고, 표시할 태블릿(소스)만 바꾼다 → 빠른 교체.
+  // 접속 전인 태블릿도 미리 지정할 수 있도록 모든 버전×태블릿을 목록에 넣는다.
   function buildSrcOptions(select, item) {
     select.innerHTML = '';
-    const list = [...sources.values()].filter((s) => s.online || s === item.source);
-    list.sort((a, b) => (a.vi - b.vi) || (a.id - b.id));
-    list.forEach((s) => {
-      const o = document.createElement('option');
-      o.value = s.key;
-      o.textContent = s.label + (s.online ? '' : ' (끊김)');
-      if (s === item.source) o.selected = true;
-      select.appendChild(o);
+    versionUrls.forEach((url, vi) => {
+      const count = versionTabletCount[vi] || 0;
+      for (let id = 1; id <= count; id++) {
+        const key = keyOf(vi, id);
+        const s = sources.get(key);
+        const online = s && s.online;
+        const o = document.createElement('option');
+        o.value = key;
+        o.textContent = `${versionNames[vi] || 'V' + (vi + 1)} · 태블릿 ${id}${online ? '' : ' (대기)'}`;
+        if (item.source && item.source.key === key) o.selected = true;
+        select.appendChild(o);
+      }
     });
+    // 현재 소스가 목록에 없으면(태블릿 수를 모르는 경우 등) 맨 앞에 추가해 표시한다.
+    if (item.source && !select.querySelector(`option[value="${item.source.key}"]`)) {
+      const o = document.createElement('option');
+      o.value = item.source.key;
+      o.textContent = item.source.label;
+      o.selected = true;
+      select.insertBefore(o, select.firstChild);
+    }
   }
   function swapItemSource(item, newKey) {
-    const ns = sources.get(newKey);
+    const parts = String(newKey).split(':');
+    const ns = ensureSource(parseInt(parts[0], 10), parseInt(parts[1], 10));
     if (!ns || ns === item.source) return;
     const old = item.source;
     const i = old.items.indexOf(item);
@@ -526,10 +541,58 @@
       versionUrls.map((url, i) =>
         fetch(`${url}/api/status?pw=${encodeURIComponent(pw)}`, { cache: 'no-store' })
           .then((r) => (r.ok ? r.json() : null))
-          .then((d) => { versionNames[i] = (d && d.instanceName) || 'V' + (i + 1); })
-          .catch(() => { versionNames[i] = 'V' + (i + 1); })
+          .then((d) => {
+            versionNames[i] = (d && d.instanceName) || 'V' + (i + 1);
+            versionTabletCount[i] = (d && d.tabletCount) || 0;
+          })
+          .catch(() => { versionNames[i] = 'V' + (i + 1); versionTabletCount[i] = versionTabletCount[i] || 0; })
       )
     );
+  }
+
+  // 모든 버전×태블릿의 칸을 미리 만들어 둔다(접속 전이어도). 이미 있는 건 건너뛴다.
+  function prefillAllSlots() {
+    let made = 0;
+    versionUrls.forEach((url, vi) => {
+      const count = versionTabletCount[vi] || 0;
+      for (let id = 1; id <= count; id++) {
+        const s = ensureSource(vi, id);
+        if (!isPlaced(s)) { addToStage(s); made++; }
+      }
+    });
+    if (!made && versionUrls.every((u, i) => !versionTabletCount[i])) {
+      alert('버전 정보를 아직 못 불러왔습니다. 잠시 후 다시 시도하거나, "버전 주소"가 올바른지 확인하세요.');
+    }
+  }
+
+  // 무대의 모든 칸을 격자로 배치한다(18개 등 여러 칸을 한눈에).
+  function arrangeGrid() {
+    const items = [];
+    sources.forEach((s) => s.items.forEach((it) => items.push(it)));
+    if (!items.length) return;
+    const n = items.length;
+    const pad = 12;
+    const cols = Math.max(1, Math.round(Math.sqrt(n * (stage.clientWidth / Math.max(1, stage.clientHeight)))));
+    const rows = Math.ceil(n / cols);
+    const cellW = (stage.clientWidth - pad * (cols + 1)) / cols;
+    const cellH = (stage.clientHeight - pad * (rows + 1)) / rows;
+    items.forEach((it, i) => {
+      const r = Math.floor(i / cols);
+      const c = i % cols;
+      const aspect = it.h > 0 ? it.w / it.h : 1.6;
+      let w = cellW;
+      let h = w / aspect;
+      if (h > cellH) { h = cellH; w = h * aspect; }
+      it.w = Math.round(w);
+      it.h = Math.round(h);
+      it.x = Math.round(pad + c * (cellW + pad) + (cellW - w) / 2);
+      it.y = Math.round(pad + r * (cellH + pad) + (cellH - h) / 2);
+      it.el.style.left = it.x + 'px';
+      it.el.style.top = it.y + 'px';
+      it.el.style.width = it.w + 'px';
+      it.el.style.height = it.h + 'px';
+      fitCanvas(it);
+    });
   }
 
   // ---------- 툴바 ----------
@@ -571,6 +634,8 @@
     sources.forEach((s) => { if (s.online && !isPlaced(s)) addToStage(s); });
   });
   document.getElementById('rowBtn').addEventListener('click', arrangeRow);
+  document.getElementById('gridBtn').addEventListener('click', arrangeGrid);
+  document.getElementById('prefillBtn').addEventListener('click', prefillAllSlots);
   document.getElementById('clearStageBtn').addEventListener('click', () => {
     sources.forEach((s) => s.items.slice().forEach(removeItem));
   });
