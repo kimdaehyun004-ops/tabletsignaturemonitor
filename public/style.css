@@ -971,3 +971,8 @@ html, body {
 .snap-guide { position: absolute; z-index: 9; pointer-events: none; }
 .snap-guide-v { top: 0; bottom: 0; width: 0; border-left: 1px solid #ff2d78; }
 .snap-guide-h { left: 0; right: 0; height: 0; border-top: 1px solid #ff2d78; }
+
+/* vedit: 출력 모드 왼쪽 플로팅 버튼(칸 추가 / 칸 보기) */
+.exit-output.out-left { left: 10px; right: auto; }
+.exit-output.out-left2 { left: 120px; right: auto; }
+.exit-output.active { background: rgba(37, 99, 235, 0.9); border-color: #2563eb; }

@@ -660,12 +660,18 @@
   // "칸 보기": 접속된 모든 태블릿 칸을 무대에 올리고, 비어 있어도 테두리로 보이게 한다.
   let framesOn = false;
   const framesBtn = document.getElementById('framesBtn');
-  framesBtn.addEventListener('click', () => {
+  const framesOut = document.getElementById('framesOut');
+  function toggleFrames() {
     framesOn = !framesOn;
     stage.classList.toggle('show-frames', framesOn);
     framesBtn.classList.toggle('active', framesOn);
+    if (framesOut) framesOut.classList.toggle('active', framesOn);
     if (framesOn) sources.forEach((s) => { if (s.online && !isPlaced(s)) addToStage(s); });
-  });
+  }
+  framesBtn.addEventListener('click', toggleFrames);
+  if (framesOut) framesOut.addEventListener('click', toggleFrames);
+  const addSlotOut = document.getElementById('addSlotOut');
+  if (addSlotOut) addSlotOut.addEventListener('click', addEmptySlot);
 
   // ---------- 프리셋 (배치/색/화면비를 저장해 한 번에 적용) ----------
   const presetListEl = document.getElementById('presetList');
@@ -769,6 +775,8 @@
     editorEl.classList.toggle('output-mode', on);
     exitOutputBtn.style.display = on ? 'block' : 'none';
     clearOutBtn.style.display = on ? 'block' : 'none';
+    if (framesOut) framesOut.style.display = on ? 'block' : 'none';
+    if (addSlotOut) addSlotOut.style.display = on ? 'block' : 'none';
     if (on) fullscreenOut();
     else if (document.fullscreenElement) { document.exitFullscreen().catch(() => {}); }
     setTimeout(applyStageSize, 60);
