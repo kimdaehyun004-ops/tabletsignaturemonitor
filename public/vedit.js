@@ -491,22 +491,35 @@
   function connectAll() {
     conns.forEach((c) => { c.closedByUs = true; if (c.timer) clearTimeout(c.timer); try { c.ws && c.ws.close(); } catch {} });
     conns = versionUrls.map((url, index) => {
-      const c = { url, index, ws: null, timer: null, closedByUs: false };
+      const c = { url, index, ws: null, timer: null, closedByUs: false, lastMsg: Date.now() };
       const wsUrl = url.replace(/^http/, 'ws');
       function open() {
         if (c.closedByUs) return;
         let ws;
         try { ws = new WebSocket(wsUrl); } catch { c.timer = setTimeout(open, 3000); return; }
         c.ws = ws;
-        ws.addEventListener('open', () => ws.send(JSON.stringify({ type: 'hello', role: 'monitor', password: pw })));
-        ws.addEventListener('message', (ev) => { try { handleMsg(index, JSON.parse(ev.data)); } catch {} });
+        ws.addEventListener('open', () => { c.lastMsg = Date.now(); ws.send(JSON.stringify({ type: 'hello', role: 'monitor', password: pw })); });
+        ws.addEventListener('message', (ev) => { c.lastMsg = Date.now(); try { handleMsg(index, JSON.parse(ev.data)); } catch {} });
         ws.addEventListener('close', () => { if (!c.closedByUs) c.timer = setTimeout(open, 3000); });
         ws.addEventListener('error', () => { try { ws.close(); } catch {} });
       }
+      c.reopen = open;
       open();
       return c;
     });
   }
+
+  // 각 버전 연결을 앱 레벨 ping으로 살아있게 유지하고(프록시가 pong을 흘려도 안전),
+  // 서버로부터 한동안 소식이 없으면 그 연결을 닫는다 → close 핸들러가 다시 연결 → 피드 끊김 방지.
+  setInterval(() => {
+    const now = Date.now();
+    conns.forEach((c) => {
+      if (c.ws && c.ws.readyState === WebSocket.OPEN) {
+        try { c.ws.send(JSON.stringify({ type: 'ping' })); } catch {}
+        if (now - c.lastMsg > 30000) { try { c.ws.close(); } catch {} }
+      }
+    });
+  }, 10000);
 
   function loadVersionNames() {
     return Promise.all(
@@ -582,10 +595,6 @@
   const clearOutBtn = document.getElementById('clearOut');
   let screenDetails = null;
   let targetScreen = null;
-
-  function clearStage() {
-    sources.forEach((s) => s.items.slice().forEach(removeItem));
-  }
 
   function fullscreenOut() {
     const el = document.documentElement;

@@ -70,6 +70,7 @@
   const GRID_GAP = 10; // style.css .grid의 gap 값과 반드시 일치시켜야 한다.
 
   let ws;
+  let lastMonMsg = Date.now(); // 서버로부터 마지막 소식 시각(앱 하트비트용)
   let tabletCount = 10;
   // 접속 안 된 칸에 연결 QR코드를 만들기 위한 정보 (관리자 로그인 후 채워짐).
   let hostBase = '';
@@ -505,11 +506,16 @@
     ws = new WebSocket(`${protocol}://${location.host}`);
 
     ws.addEventListener('open', () => {
+      lastMonMsg = Date.now();
       ws.send(JSON.stringify({ type: 'hello', role: 'monitor', password }));
     });
 
     ws.addEventListener('message', (ev) => {
+      lastMonMsg = Date.now();
       const msg = JSON.parse(ev.data);
+      if (msg.type === 'pong') {
+        return;
+      }
       if (msg.type === 'auth_ok') {
         sessionStorage.setItem('monitorPassword', password);
         loginEl.style.display = 'none';
@@ -544,6 +550,15 @@
 
     ws.addEventListener('error', () => ws.close());
   }
+
+  // 앱 레벨 하트비트: 서버에 ping을 보내 살아있게 유지하고(pong 유실에도 안전),
+  // 한동안 소식이 없으면 소켓을 닫아 재연결시켜 모니터 피드가 끊기지 않게 한다.
+  setInterval(() => {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      try { ws.send(JSON.stringify({ type: 'ping' })); } catch {}
+      if (Date.now() - lastMonMsg > 30000) { try { ws.close(); } catch {} }
+    }
+  }, 10000);
 
   // 모니터링 화면도 자동으로 꺼지지 않게 유지한다 (Screen Wake Lock).
   let wakeLock = null;

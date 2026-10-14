@@ -764,28 +764,26 @@ wss.on('connection', (ws) => {
 });
 
 // 연결 끊김 감지용 하트비트.
-// 태블릿: 짧게 홈 화면에 나갔다 오는 건 봐주되, 응답(핑퐁/메시지)이 일정 시간
-// 없으면 실제로 신호가 끊긴 것으로 보고 종료해 모니터에 "끊김"으로 반영한다.
-// 모니터(관리자 PC): 한 주기 동안 pong이 없으면 종료한다.
+// 태블릿·모니터 모두 "마지막으로 응답(앱 ping/그리기/pong)을 받은 시각" 기준으로,
+// 일정 시간 아무 소식이 없을 때만 끊는다. 일시적인 pong 유실로 멀쩡한 연결이
+// 끊겨 화면이 깜빡이거나 끊기지 않도록 한 번의 누락으로는 종료하지 않는다.
 const HEARTBEAT_INTERVAL = 10000;
-const TABLET_DEAD_MS = 35000; // 이 시간 동안 태블릿 응답(앱 ping/그리기/pong)이 없으면 끊긴 것으로 처리
+const TABLET_DEAD_MS = 35000; // 태블릿: 이 시간 동안 응답이 없으면 끊긴 것으로 처리(모니터에 반영)
+const VIEWER_DEAD_MS = 40000; // 모니터/뷰어: 이 시간 동안 응답이 없으면 정리(재연결은 클라이언트가 함)
 const heartbeat = setInterval(() => {
   const now = Date.now();
   wss.clients.forEach((ws) => {
+    const idle = now - (ws.lastSeen || 0);
     if (ws.role === 'tablet') {
-      if (now - (ws.lastSeen || 0) > TABLET_DEAD_MS) {
+      if (idle > TABLET_DEAD_MS) {
         ws.terminatedByHeartbeat = true;
         try { ws.terminate(); } catch {}
         return;
       }
-      try { ws.ping(); } catch {}
-      return;
-    }
-    if (ws.isAlive === false) {
+    } else if (idle > VIEWER_DEAD_MS) {
       try { ws.terminate(); } catch {}
       return;
     }
-    ws.isAlive = false;
     try {
       ws.ping();
     } catch {
