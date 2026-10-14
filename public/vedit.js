@@ -574,6 +574,85 @@
   document.getElementById('clearStageBtn').addEventListener('click', () => {
     sources.forEach((s) => s.items.slice().forEach(removeItem));
   });
+
+  // "칸 보기": 접속된 모든 태블릿 칸을 무대에 올리고, 비어 있어도 테두리로 보이게 한다.
+  let framesOn = false;
+  const framesBtn = document.getElementById('framesBtn');
+  framesBtn.addEventListener('click', () => {
+    framesOn = !framesOn;
+    stage.classList.toggle('show-frames', framesOn);
+    framesBtn.classList.toggle('active', framesOn);
+    if (framesOn) sources.forEach((s) => { if (s.online && !isPlaced(s)) addToStage(s); });
+  });
+
+  // ---------- 프리셋 (배치/색/화면비를 저장해 한 번에 적용) ----------
+  const presetListEl = document.getElementById('presetList');
+  function loadPresets() {
+    try { return JSON.parse(localStorage.getItem('veditPresets') || '{}') || {}; } catch { return {}; }
+  }
+  function savePresets(obj) {
+    try { localStorage.setItem('veditPresets', JSON.stringify(obj)); } catch {}
+  }
+  function refreshPresetList() {
+    const presets = loadPresets();
+    const names = Object.keys(presets).sort();
+    presetListEl.innerHTML = '<option value="">저장된 프리셋</option>';
+    names.forEach((n) => {
+      const o = document.createElement('option');
+      o.value = n; o.textContent = n;
+      presetListEl.appendChild(o);
+    });
+  }
+  refreshPresetList();
+
+  document.getElementById('presetSave').addEventListener('click', () => {
+    const name = (document.getElementById('presetName').value || '').trim();
+    if (!name) { alert('프리셋 이름을 입력하세요.'); return; }
+    const slots = [];
+    sources.forEach((s) => s.items.forEach((it) => slots.push({ vi: s.vi, id: s.id, x: it.x, y: it.y, w: it.w, h: it.h })));
+    const presets = loadPresets();
+    presets[name] = { bg: bgColor, ink: inkColor, resSel: resSelect.value, resCustomVal: resCustom.value, aspect: stageAspect, slots };
+    savePresets(presets);
+    refreshPresetList();
+    presetListEl.value = name;
+    document.getElementById('presetName').value = '';
+  });
+
+  document.getElementById('presetLoad').addEventListener('click', () => {
+    const name = presetListEl.value;
+    if (!name) { alert('불러올 프리셋을 선택하세요.'); return; }
+    const p = loadPresets()[name];
+    if (!p) return;
+    // 설정 적용
+    bgColor = p.bg || bgColor;
+    if (bgColor !== 'transparent') document.getElementById('bgCustom').value = bgColor;
+    applyBg();
+    inkColor = p.ink || inkColor;
+    document.getElementById('inkCustom').value = inkColor;
+    resSelect.value = p.resSel != null ? p.resSel : resSelect.value;
+    resCustom.value = p.resCustomVal || '';
+    resCustom.style.display = resSelect.value === 'custom' ? 'inline-block' : 'none';
+    stageAspect = p.aspect || 0;
+    applyStageSize();
+    // 기존 배치 비우고 프리셋 배치로 재구성 (접속 전이어도 칸은 만들어 둔다)
+    sources.forEach((s) => s.items.slice().forEach(removeItem));
+    (p.slots || []).forEach((sl) => {
+      const s = ensureSource(sl.vi, sl.id);
+      addToStage(s, { x: sl.x, y: sl.y, w: sl.w, h: sl.h });
+    });
+    selectedItem = null;
+    sources.forEach((s) => s.items.forEach((it) => it.el.classList.remove('selected')));
+    renderSourceList();
+  });
+
+  document.getElementById('presetDelete').addEventListener('click', () => {
+    const name = presetListEl.value;
+    if (!name) return;
+    const presets = loadPresets();
+    delete presets[name];
+    savePresets(presets);
+    refreshPresetList();
+  });
   document.getElementById('versionsBtn').addEventListener('click', () => {
     const box = document.getElementById('versionsBox');
     document.getElementById('versionsInput').value = versionUrls.join('\n');

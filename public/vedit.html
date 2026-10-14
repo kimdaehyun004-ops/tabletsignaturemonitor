@@ -39,10 +39,20 @@
 
       <span class="tb-group">
         <label class="tb-label" style="cursor:pointer;"><input type="checkbox" id="autoAdd" checked /> 새 접속 자동 추가</label>
+        <button id="framesBtn" title="접속된 모든 서명칸을 테두리와 함께 표시">칸 보기</button>
         <button id="addAllBtn">접속된 것 모두 추가</button>
         <button id="rowBtn">가로 정렬</button>
         <button id="clearStageBtn">무대 비우기</button>
         <button id="versionsBtn">버전 주소</button>
+      </span>
+
+      <span class="tb-group">
+        <span class="tb-label">프리셋</span>
+        <select id="presetList"><option value="">저장된 프리셋</option></select>
+        <button id="presetLoad">불러오기</button>
+        <input type="text" id="presetName" placeholder="이름" style="width:90px;" />
+        <button id="presetSave">저장</button>
+        <button id="presetDelete" class="danger" title="선택한 프리셋 삭제">삭제</button>
       </span>
 
       <span class="tb-group">

@@ -961,3 +961,8 @@ html, body {
 .confirm-bar button { padding: 7px 16px; border-radius: 7px; border: none; cursor: pointer; font-size: 14px; font-weight: 700; }
 .confirm-bar .cb-yes { background: #dc2626; color: #fff; }
 .confirm-bar .cb-no { background: #374151; color: #e5e7eb; }
+
+/* vedit: "칸 보기" - 비어 있어도 모든 서명칸을 테두리+라벨로 표시 */
+.editor-stage.show-frames .vitem { outline: 2px dashed rgba(255, 255, 255, 0.75); outline-offset: -1px; }
+.editor-stage.show-frames .vitem .vitem-label { opacity: 1; }
+.editor-toolbar button#framesBtn.active { background: #2563eb; color: #fff; border-color: #2563eb; }
