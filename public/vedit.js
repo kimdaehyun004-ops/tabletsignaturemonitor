@@ -187,7 +187,7 @@
 
   function renderSourceList() {
     sourceListEl.innerHTML = '';
-    const list = [...sources.values()].filter((s) => s.online || isPlaced(s));
+    const list = [...sources.values()].filter((s) => s.vi !== null && (s.online || isPlaced(s)));
     trayCountEl.textContent = `${list.filter((s) => s.online).length}대 접속`;
     list.sort((a, b) => (a.vi - b.vi) || (a.id - b.id));
     list.forEach((s) => {
@@ -550,19 +550,15 @@
     );
   }
 
-  // 모든 버전×태블릿의 칸을 미리 만들어 둔다(접속 전이어도). 이미 있는 건 건너뛴다.
-  function prefillAllSlots() {
-    let made = 0;
-    versionUrls.forEach((url, vi) => {
-      const count = versionTabletCount[vi] || 0;
-      for (let id = 1; id <= count; id++) {
-        const s = ensureSource(vi, id);
-        if (!isPlaced(s)) { addToStage(s); made++; }
-      }
-    });
-    if (!made && versionUrls.every((u, i) => !versionTabletCount[i])) {
-      alert('버전 정보를 아직 못 불러왔습니다. 잠시 후 다시 시도하거나, "버전 주소"가 올바른지 확인하세요.');
-    }
+  // 빈 서명칸을 하나 추가한다. 아직 태블릿이 지정되지 않은 "미지정 칸"으로 만들어 두고,
+  // 칸의 드롭다운에서 원하는 태블릿(접속 전이어도)을 지정하면 그때 연결된다.
+  let unassignedCounter = 0;
+  function addEmptySlot() {
+    unassignedCounter++;
+    const key = 'unassigned:' + unassignedCounter;
+    const s = { key, vi: null, id: null, label: '미지정 칸', online: false, history: [], queue: [], items: [] };
+    sources.set(key, s);
+    addToStage(s);
   }
 
   // 무대의 모든 칸을 격자로 배치한다(18개 등 여러 칸을 한눈에).
@@ -635,7 +631,7 @@
   });
   document.getElementById('rowBtn').addEventListener('click', arrangeRow);
   document.getElementById('gridBtn').addEventListener('click', arrangeGrid);
-  document.getElementById('prefillBtn').addEventListener('click', prefillAllSlots);
+  document.getElementById('addSlotBtn').addEventListener('click', addEmptySlot);
   document.getElementById('clearStageBtn').addEventListener('click', () => {
     sources.forEach((s) => s.items.slice().forEach(removeItem));
   });
