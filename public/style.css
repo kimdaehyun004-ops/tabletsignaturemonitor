@@ -980,3 +980,10 @@ html, body {
 /* vedit: 디자인용 배경 이미지 레이어 (서명 아래). 출력 모드에서도 토글로 볼 수 있다. */
 .stage-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: fill; z-index: 0; pointer-events: none; user-select: none; }
 .exit-output.out-left3 { left: 230px; right: auto; }
+
+/* vedit: 버전별 연결 상태 칩 */
+.ver-status { display: inline-flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.ver-chip { font-size: 11px; padding: 3px 8px; border-radius: 999px; border: 1px solid #39414c; background: #1a1f24; color: #cbd5e1; white-space: nowrap; }
+.ver-chip.ok { color: #4ade80; border-color: #2a4c3a; }
+.ver-chip.err { color: #f87171; border-color: #5a2a2a; }
+.ver-chip.warn { color: #f5b74f; border-color: #5a4a1f; }

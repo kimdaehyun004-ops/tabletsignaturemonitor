@@ -575,6 +575,10 @@
 
   // ---------- 버전 연결 (실시간 모니터 WS) ----------
   function handleMsg(vi, msg) {
+    if (msg.type === 'auth_ok') {
+      if (conns[vi]) { conns[vi].status = '연결됨'; conns[vi].authFailed = false; renderVersionStatus(); }
+      return;
+    }
     if (msg.type === 'status') {
       (msg.tablets || []).forEach((t) => {
         const s = ensureSource(vi, t.id);
@@ -598,6 +602,7 @@
         it.ctx.strokeStyle = inkColor;
       });
     } else if (msg.type === 'auth_error') {
+      if (conns[vi]) { conns[vi].status = '비번오류'; conns[vi].authFailed = true; renderVersionStatus(); }
       loginError.textContent = (versionNames[vi] || 'V' + (vi + 1)) + ' 연결 실패: ' + (msg.message || '');
     }
   }
@@ -605,21 +610,38 @@
   function connectAll() {
     conns.forEach((c) => { c.closedByUs = true; if (c.timer) clearTimeout(c.timer); try { c.ws && c.ws.close(); } catch {} });
     conns = versionUrls.map((url, index) => {
-      const c = { url, index, ws: null, timer: null, closedByUs: false, lastMsg: Date.now() };
+      const c = { url, index, ws: null, timer: null, closedByUs: false, lastMsg: Date.now(), status: '접속중' };
       const wsUrl = url.replace(/^http/, 'ws');
       function open() {
         if (c.closedByUs) return;
         let ws;
         try { ws = new WebSocket(wsUrl); } catch { c.timer = setTimeout(open, 3000); return; }
         c.ws = ws;
+        c.status = '접속중'; renderVersionStatus();
         ws.addEventListener('open', () => { c.lastMsg = Date.now(); ws.send(JSON.stringify({ type: 'hello', role: 'monitor', password: pw })); });
         ws.addEventListener('message', (ev) => { c.lastMsg = Date.now(); try { handleMsg(index, JSON.parse(ev.data)); } catch {} });
-        ws.addEventListener('close', () => { if (!c.closedByUs) c.timer = setTimeout(open, 3000); });
+        ws.addEventListener('close', () => { c.status = c.authFailed ? '비번오류' : '끊김'; renderVersionStatus(); if (!c.closedByUs) c.timer = setTimeout(open, 3000); });
         ws.addEventListener('error', () => { try { ws.close(); } catch {} });
       }
       c.reopen = open;
       open();
       return c;
+    });
+    renderVersionStatus();
+  }
+
+  // 버전별 연결 상태를 툴바에 보여준다 (V2가 왜 안 붙는지 바로 확인용).
+  const versionStatusEl = document.getElementById('versionStatus');
+  function renderVersionStatus() {
+    if (!versionStatusEl) return;
+    versionStatusEl.innerHTML = '';
+    conns.forEach((c, i) => {
+      const chip = document.createElement('span');
+      const st = c.status || '접속중';
+      chip.className = 'ver-chip ' + (st === '연결됨' ? 'ok' : st === '비번오류' ? 'err' : 'warn');
+      chip.textContent = `${versionNames[i] || 'V' + (i + 1)}: ${st}`;
+      chip.title = c.url;
+      versionStatusEl.appendChild(chip);
     });
   }
 
