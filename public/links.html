@@ -7,14 +7,75 @@
 <link rel="stylesheet" href="style.css" />
 <style>
   body { background: #f3f3f3; color: #111; }
-  .links-page { max-width: 1000px; margin: 0 auto; padding: 24px; }
+  .links-page { max-width: 1500px; margin: 0 auto; padding: 24px; }
   .links-page h1 { font-size: 20px; }
   .links-page p.hint { color: #555; font-size: 14px; }
-  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; margin-top: 20px; }
-  .card { background: #fff; border: 1px solid #ddd; border-radius: 12px; padding: 14px; text-align: center; }
-  .card h3 { margin: 0 0 10px; }
-  .card .qr { display: flex; justify-content: center; margin-bottom: 8px; }
-  .card a { font-size: 12px; word-break: break-all; color: #2563eb; }
+  /* QR 카드: 크게, 넉넉한 간격으로. 작고 붙어 있어서 인식이 안 되는 문제를 줄인다. */
+  /* 칸 너비가 QR 크기를 따라가야 한다. 고정값으로 두면 QR을 키웠을 때
+     QR이 칸 밖으로 넘쳐 옆 카드에 가려지고, 잘린 QR은 인식되지 않는다.
+     --qr-cell 값은 links.js 가 선택된 크기에 맞춰 넣어준다. */
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--qr-cell, 280px), 1fr)); gap: 28px; margin-top: 20px; }
+  .card { min-width: 0; overflow: visible; }
+  .card { background: #fff; border: 1px solid #ddd; border-radius: 12px; padding: 18px; text-align: center; }
+  .card h3 { margin: 0 0 12px; font-size: 20px; }
+  /* QR 둘레에 흰 여백(콰이어트 존)을 반드시 둬야 카메라가 테두리를 찾는다. */
+  /* line-height/font-size 를 0 으로 두지 않으면 인라인 기준선 때문에 QR이
+     반 픽셀 어긋나게 그려져 가장자리가 흐려지고 인식률이 떨어진다.
+     padding 은 QR 둘레의 흰 여백(콰이어트 존). 이게 좁으면 카메라가 테두리를 못 찾는다. */
+  .card .qr { display: inline-block; background: #fff; padding: 20px; border-radius: 8px; cursor: zoom-in; line-height: 0; font-size: 0; }
+  .card .qr img, .card .qr canvas { display: block; image-rendering: pixelated; }
+  .card a { display: block; margin-top: 10px; font-size: 12px; word-break: break-all; color: #2563eb; }
+  .qr-zoom-btn {
+    display: block; width: 100%; margin-top: 10px; padding: 9px 0;
+    border: 1px solid #cbd5e1; border-radius: 8px; background: #f8fafc;
+    color: #0f172a; font-size: 14px; font-weight: 700; cursor: pointer;
+  }
+  .qr-zoom-btn:hover { background: #e2e8f0; }
+
+  /* 크기 조절 / 인쇄 툴바 */
+  .qr-toolbar {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+    margin: 16px 0 4px; padding: 12px 14px;
+    background: #fff; border: 1px solid #ddd; border-radius: 10px;
+  }
+  .qr-toolbar span.label { font-size: 14px; color: #555; margin-right: 4px; }
+  .qr-toolbar button {
+    padding: 8px 14px; border: 1px solid #cbd5e1; border-radius: 8px;
+    background: #f8fafc; color: #0f172a; font-size: 14px; cursor: pointer;
+  }
+  .qr-toolbar button.active { background: #2563eb; border-color: #2563eb; color: #fff; font-weight: 700; }
+  .qr-toolbar button#printBtn { margin-left: auto; }
+
+  /* 전체화면 확대 보기 */
+  .qr-overlay {
+    position: fixed; inset: 0; z-index: 9999;
+    background: rgba(15, 23, 42, 0.92);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .qr-overlay-inner { text-align: center; max-width: 94vw; }
+  .qr-overlay-title { color: #fff; font-size: 30px; font-weight: 800; margin-bottom: 14px; }
+  .qr-overlay-qr { display: inline-block; background: #fff; padding: 28px; border-radius: 14px; line-height: 0; font-size: 0; }
+  .qr-overlay-qr img, .qr-overlay-qr canvas { display: block; image-rendering: pixelated; }
+  .qr-overlay-url { color: #cbd5e1; font-size: 13px; margin-top: 12px; word-break: break-all; }
+  .qr-overlay-nav { margin-top: 16px; display: flex; gap: 10px; justify-content: center; align-items: center; }
+  .qr-overlay-nav button {
+    padding: 11px 20px; border: 0; border-radius: 10px;
+    background: #e2e8f0; color: #0f172a; font-size: 16px; font-weight: 700; cursor: pointer;
+  }
+  .qr-overlay-count { color: #94a3b8; font-size: 15px; margin: 0 6px; }
+
+  /* 인쇄: 태블릿 1대당 1장. 태블릿 옆에 붙여두고 쓰면 편하다. */
+  @media print {
+    body { background: #fff; }
+    .qr-toolbar, .hint, .offline-checklist, .qr-overlay, .qr-zoom-btn,
+    .links-page > h1, .cards:not(#tabletCards) { display: none !important; }
+    .links-page { padding: 0; max-width: none; }
+    #tabletCards { display: block; margin: 0; }
+    #tabletCards .card { page-break-after: always; break-after: page; border: 0; padding: 0; }
+    #tabletCards .card h3 { font-size: 44px; margin: 30px 0 20px; }
+    #tabletCards .card .qr { padding: 0; }
+    #tabletCards .card a { font-size: 15px; margin-top: 18px; }
+  }
   .monitor-card { background: #eef2ff; border-color: #c7d2fe; }
   #instanceBadge {
     display: inline-block;
@@ -33,6 +94,15 @@
     <h1>태블릿 연결 QR코드 <span id="instanceBadge" style="display:none;"></span></h1>
     <p class="hint" id="hintText">각 태블릿 카메라로 해당 번호의 QR코드를 스캔하면 자동으로 서명 화면에 연결됩니다.</p>
 
+    <div class="qr-toolbar" id="qrToolbar">
+      <span class="label">QR 크기</span>
+      <button type="button" data-size="normal">보통</button>
+      <button type="button" data-size="big">크게</button>
+      <button type="button" data-size="huge">아주 크게</button>
+      <button type="button" id="printBtn">🖨 인쇄 (태블릿당 1장)</button>
+    </div>
+    <p class="hint">QR을 누르면 <b>화면 가득 크게</b> 볼 수 있습니다. 태블릿을 가까이 대기 어려울 때 사용하세요.</p>
+
     <div class="cards">
       <div class="card monitor-card">
         <h3>PC 모니터링 화면</h3>
@@ -43,6 +113,20 @@
 
     <h1 style="margin-top:28px;">태블릿별 QR코드</h1>
     <div class="cards" id="tabletCards"></div>
+  </div>
+
+  <div id="qrOverlay" class="qr-overlay" style="display:none;">
+    <div class="qr-overlay-inner">
+      <div class="qr-overlay-title" id="qrOverlayTitle"></div>
+      <div class="qr-overlay-qr" id="qrOverlayQr"></div>
+      <div class="qr-overlay-url" id="qrOverlayUrl"></div>
+      <div class="qr-overlay-nav">
+        <button type="button" id="qrPrev">◀ 이전</button>
+        <span class="qr-overlay-count" id="qrOverlayCount"></span>
+        <button type="button" id="qrNext">다음 ▶</button>
+        <button type="button" id="qrClose">닫기 (ESC)</button>
+      </div>
+    </div>
   </div>
 
   <script src="qrcode.lib.js"></script>

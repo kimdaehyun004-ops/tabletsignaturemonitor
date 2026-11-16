@@ -413,11 +413,26 @@
           item.x = x; item.y = y; item.w = nw; item.h = nh;
           el.style.left = x + 'px'; el.style.top = y + 'px';
           el.style.width = nw + 'px'; el.style.height = nh + 'px';
-          fitCanvas(item);
+          // 끄는 동안에는 캔버스를 다시 만들지 않는다.
+          // fitCanvas()는 캔버스를 새로 할당하고 그동안의 획을 전부 다시 그리는데,
+          // 전체화면 크기(1920x1080, 화면배율 2배)에서는 한 번에 20~45ms가 들어
+          // 마우스를 움직이는 내내 프레임이 뚝뚝 끊긴다.
+          // 끄는 동안에는 CSS로 늘였다 줄인 모습만 미리 보여주고,
+          // 손을 떼는 순간 한 번만 선명하게 다시 그린다.
+          item.canvas.style.width = nw + 'px';
+          item.canvas.style.height = nh + 'px';
         };
-        const up = () => { rh.removeEventListener('pointermove', move); rh.removeEventListener('pointerup', up); };
+        const up = () => {
+          // 손을 뗄 때 한 번만 제 해상도로 다시 그린다.
+          fitCanvas(item);
+          rh.removeEventListener('pointermove', move);
+          rh.removeEventListener('pointerup', up);
+          rh.removeEventListener('pointercancel', up);
+        };
         rh.addEventListener('pointermove', move);
         rh.addEventListener('pointerup', up);
+        // 포인터가 취소되는 경우에도 흐릿하게 늘어난 상태로 남지 않도록 복구한다.
+        rh.addEventListener('pointercancel', up);
       });
     });
 
