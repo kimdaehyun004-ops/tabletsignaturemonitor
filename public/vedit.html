@@ -102,7 +102,7 @@
 
       <div class="editor-stagewrap">
         <div id="stage" class="editor-stage"><img id="stageBg" class="stage-bg" alt="" style="display:none;" /></div>
-        <p class="stage-hint">본체를 끌어 이동 · 모서리/변을 끌어 자유 변형(좌우·상하 찌그러뜨리기) · 클릭해 선택. "출력 모드"를 누르면 이 무대만 크게 표시됩니다(방송용).</p>
+        <p class="stage-hint">본체를 끌어 이동 · 모서리/변을 끌어 자유 변형(좌우·상하 찌그러뜨리기) · 클릭해 선택. "출력 모드"를 누르면 이 무대만 크게 표시됩니다(방송용). 출력 모드에서 <b>P</b> 키를 누르면 화면의 버튼과 마우스 커서가 사라집니다(다시 <b>P</b>).</p>
       </div>
     </div>
     <button id="clearOut" class="exit-output clear-out" style="display:none;">🧹 서명 지우기</button>
@@ -110,6 +110,8 @@
     <button id="addSlotOut" class="exit-output out-left" style="display:none;">＋ 칸 추가</button>
     <button id="framesOut" class="exit-output out-left2" style="display:none;">칸 보기</button>
     <button id="bgImgOut" class="exit-output out-left3" style="display:none;">🖼 배경</button>
+    <!-- 출력 모드에 들어갈 때 잠깐만 뜨는 안내 (P 키로 버튼/커서 숨기기) -->
+    <div id="outputHint" class="output-hint"></div>
     <div id="confirmBar" class="confirm-bar" style="display:none;">
       <span id="confirmMsg"></span>
       <button id="confirmYes" class="cb-yes">확인</button>

@@ -876,6 +876,45 @@
   // 출력 모드
   const exitOutputBtn = document.getElementById('exitOutput');
   const clearOutBtn = document.getElementById('clearOut');
+
+  // ───── 출력 모드에서 버튼·마우스 커서 숨기기 (P 키) ─────
+  // 송출 화면에 버튼이나 마우스 커서가 찍히지 않게 한 번에 감춘다.
+  // 버튼은 화면 위에 떠 있는 요소라서 숨겨도 무대 크기·화면비는 그대로다.
+  const outputHint = document.getElementById('outputHint');
+  let cleanOutput = false;
+  let hintTimer = null;
+  let cursorTimer = null;
+
+  function showOutputHint(text, ms) {
+    if (!outputHint) return;
+    outputHint.textContent = text;
+    outputHint.classList.add('show');
+    clearTimeout(hintTimer);
+    hintTimer = setTimeout(() => outputHint.classList.remove('show'), ms || 3000);
+  }
+
+  function setCleanOutput(on) {
+    cleanOutput = on;
+    editorEl.classList.toggle('clean-output', on);
+    document.body.classList.toggle('clean-output', on);
+    if (on) {
+      // 이미 계속 숨기는 상태이므로 자동 숨김 타이머는 멈춘다.
+      clearTimeout(cursorTimer);
+      document.body.classList.remove('idle-cursor');
+    }
+  }
+
+  // 출력 모드에서 마우스를 2.5초 동안 안 움직이면 커서만 조용히 사라진다.
+  // (버튼은 그대로 있다. 완전히 깨끗하게 하려면 P 를 누른다)
+  function bumpCursor() {
+    if (cleanOutput) return;
+    document.body.classList.remove('idle-cursor');
+    clearTimeout(cursorTimer);
+    if (!editorEl.classList.contains('output-mode')) return;
+    cursorTimer = setTimeout(() => document.body.classList.add('idle-cursor'), 2500);
+  }
+  document.addEventListener('mousemove', bumpCursor);
+  document.addEventListener('pointerdown', bumpCursor);
   let screenDetails = null;
   let targetScreen = null;
 
@@ -894,8 +933,18 @@
     if (framesOut) framesOut.style.display = on ? 'block' : 'none';
     if (addSlotOut) addSlotOut.style.display = on ? 'block' : 'none';
     if (bgImgOut) bgImgOut.style.display = on ? 'block' : 'none';
-    if (on) fullscreenOut();
-    else if (document.fullscreenElement) { document.exitFullscreen().catch(() => {}); }
+    if (on) {
+      fullscreenOut();
+      showOutputHint('P 키 — 버튼과 마우스 커서 숨기기 (다시 누르면 나타남)', 4000);
+      bumpCursor();
+    } else {
+      // 출력 모드를 나가면 숨김 상태도 반드시 풀어준다. 그러지 않으면
+      // 편집 화면으로 돌아왔는데 마우스가 안 보이는 상황이 생긴다.
+      setCleanOutput(false);
+      clearTimeout(cursorTimer);
+      document.body.classList.remove('idle-cursor');
+      if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+    }
     setTimeout(applyStageSize, 60);
   }
   document.getElementById('outputBtn').addEventListener('click', () => setOutput(true));
@@ -923,7 +972,22 @@
   clearOutBtn.addEventListener('click', () => {
     askConfirm('무대에 있는 모든 태블릿의 서명을 지울까요? (태블릿 화면도 비워집니다)', clearAllTabletSignatures);
   });
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') setOutput(false); });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') { setOutput(false); return; }
+
+    // P: 출력 모드에서 버튼과 마우스 커서를 숨기거나 다시 보이게 한다.
+    // 글자를 입력하는 중이거나 단축키 조합(Ctrl/Alt 등)일 때는 무시한다.
+    const tag = (e.target && e.target.tagName) || '';
+    if (/^(INPUT|TEXTAREA|SELECT)$/.test(tag)) return;
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    // 한글 입력 상태에서는 e.key 가 'ㅔ' 로 오므로 물리 키(KeyP)도 함께 본다.
+    const isP = e.code === 'KeyP' || e.key === 'p' || e.key === 'P' || e.key === 'ㅔ';
+    if (!isP) return;
+    if (!editorEl.classList.contains('output-mode')) return;
+    e.preventDefault();
+    setCleanOutput(!cleanOutput);
+    if (!cleanOutput) bumpCursor();
+  });
 
   const screenSelect = document.getElementById('screenSelect');
   document.getElementById('screenBtn').addEventListener('click', async () => {

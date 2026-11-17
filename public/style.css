@@ -987,3 +987,29 @@ html, body {
 .ver-chip.ok { color: #4ade80; border-color: #2a4c3a; }
 .ver-chip.err { color: #f87171; border-color: #5a2a2a; }
 .ver-chip.warn { color: #f5b74f; border-color: #5a4a1f; }
+
+
+/* ───── 출력 모드: P 키로 버튼·마우스 커서 숨기기 (방송 송출용) ─────
+   .exit-output 버튼들은 position:fixed 로 화면 위에 떠 있는 요소라,
+   숨기거나 다시 보여도 무대 크기와 화면비는 전혀 바뀌지 않는다.
+   그래서 크로마키 설정을 다시 잡을 필요가 없다. */
+.editor-page.output-mode.clean-output .exit-output,
+.editor-page.output-mode.clean-output .confirm-bar { display: none !important; }
+
+/* 버튼을 숨긴 동안에는 마우스 커서도 함께 감춘다 */
+body.clean-output, body.clean-output * { cursor: none !important; }
+
+/* 출력 모드에서 마우스를 잠시 안 움직이면 커서만 자동으로 사라진다 */
+body.idle-cursor, body.idle-cursor * { cursor: none !important; }
+
+/* 출력 모드에 들어갈 때 잠깐 떴다 사라지는 안내 */
+.output-hint {
+  position: fixed; left: 50%; bottom: 30px; transform: translateX(-50%);
+  z-index: 10000; padding: 10px 18px; border-radius: 10px;
+  background: rgba(0, 0, 0, 0.62); color: #fff; font-size: 14px;
+  white-space: nowrap; pointer-events: none;
+  opacity: 0; transition: opacity 0.25s ease;
+}
+.output-hint.show { opacity: 1; }
+/* 버튼을 숨기는 순간 안내도 같이 사라져야 송출 화면에 잡히지 않는다 */
+body.clean-output .output-hint { opacity: 0 !important; }
