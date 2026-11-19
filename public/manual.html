@@ -245,7 +245,8 @@
         <li><strong><code>2_시작.bat</code> 더블클릭.</strong> 검은 창이 뜨고 브라우저가 자동으로 열립니다.</li>
         <li><strong>방화벽 창이 뜨면 "개인 네트워크" 허용</strong>을 누릅니다. <span class="hl">놓치면 태블릿만 접속이 안 됩니다.</span></li>
         <li><strong>검은 창의 <code>이 PC 주소</code>를 확인합니다.</strong> <code>http://192.168.x.x:3000</code> 형태여야 합니다. 브라우저 주소창도 같은 주소인지 보세요.</li>
-        <li><strong>「📄 PDF로 받기」를 눌러 휴대폰에 저장합니다.</strong> 태블릿 1대당 1페이지짜리 QR 묶음입니다.</li>
+        <li><strong>QR PDF를 휴대폰으로 옮깁니다.</strong> 태블릿 1대당 1페이지짜리 QR 묶음입니다.<br>
+          <span style="color:var(--muted)">서버를 켜면 프로그램 폴더에 <code>태블릿QR.pdf</code> 가 자동으로 생깁니다(검은 창에 경로 표시). QR 페이지의 「📄 PDF로 받기」 버튼으로 받아도 됩니다.</span></li>
         <li><strong>태블릿으로 QR을 스캔합니다.</strong> 번호 순서대로 하고, 태블릿 뒷면에 번호 스티커를 붙여두면 나중에 편합니다.</li>
         <li><strong>모니터링 화면에서 전부 초록불인지 확인합니다.</strong> 상단에 태블릿 번호와 접속 상태가 나옵니다.</li>
       </ol>
@@ -291,6 +292,36 @@
         <li><strong>「출력 모드」</strong>를 누르면 무대만 전체화면이 됩니다.</li>
         <li><strong><code>P</code> 키를 누르면 화면의 버튼과 마우스 커서가 사라집니다.</strong> 송출에 잡히지 않습니다. 다시 <code>P</code>를 누르면 나타납니다.</li>
       </ol>
+
+      <p><strong>출력 모드 단축키</strong> — 태블릿을 만지러 갈 필요 없이 PC에서 다 됩니다.</p>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th style="width:18%">키</th><th>동작</th></tr></thead>
+          <tbody>
+            <tr><td class="sym"><strong>C</strong></td><td><strong>무대 화면 전체를 한 장으로 저장</strong> — 배경 위에 서명 여러 개가 올라간 송출 화면 그대로</td></tr>
+            <tr><td class="sym"><strong>S</strong></td><td>무대에 올라온 <strong>모든 태블릿의 서명을 이 PC에 저장</strong> (서명 획만, 배경 없이)</td></tr>
+            <tr><td class="sym"><strong>R</strong></td><td>무대와 태블릿의 <strong>서명을 지움</strong></td></tr>
+            <tr><td class="sym"><strong>P</strong></td><td>버튼과 마우스 커서 숨김 / 다시 누르면 나타남</td></tr>
+            <tr><td class="sym"><strong>ESC</strong></td><td>출력 모드 종료</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>운영 흐름은 보통 <strong>서명 → <code>S</code>(저장) → <code>R</code>(지우기) → 다음 사람</strong> 입니다.</p>
+      <p class="warn"><strong><code>S</code>와 <code>R</code>은 확인 창 없이 바로 실행됩니다.</strong> 송출 중에 한 손으로 넘기기 위한 것입니다. 다만 <code>R</code>은 화면에 그려진 것만 지우고, <strong>이미 저장된 파일은 지워지지 않습니다.</strong></p>
+      <p class="note"><strong>저장 위치는 언제나 이 PC입니다.</strong> 태블릿에는 파일이 남지 않습니다.</p>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>무엇을</th><th>어디에</th></tr></thead>
+          <tbody>
+            <tr><td class="sym">태블릿 서명 1장씩 (<strong>S</strong> 또는 태블릿 버튼)</td><td><code>data/signatures/</code></td></tr>
+            <tr><td class="sym">무대 화면 전체 (<strong>C</strong>)</td><td><code>data/stages/</code></td></tr>
+            <tr><td class="sym">위 둘의 사본</td><td><code>.env</code>의 <code>BACKUP_DIR</code> 폴더</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p><strong>C와 S는 다릅니다.</strong> <code>S</code>는 태블릿마다 <strong>서명 획만</strong> 따로 저장하고, <code>C</code>는 <strong>배경 위에 서명들이 올라간 화면 그대로</strong>를 한 장으로 저장합니다. 기념 이미지는 <code>C</code>, 서명을 따로 쓸 거라면 <code>S</code>입니다. 둘 다 눌러두셔도 됩니다.</p>
+      <p style="color:var(--muted);font-size:13.5px">선택 테두리나 크기 조절 손잡이 같은 편집용 표시는 저장 이미지에 들어가지 않습니다. 배경을 '투명'으로 두고 저장하면 배경이 비어 있는 PNG가 나와 나중에 합성하기 좋습니다.</p>
+      <p style="color:var(--muted);font-size:13.5px">한글 입력 상태(<code>ㄴ</code>, <code>ㄱ</code>, <code>ㅔ</code>)에서도 동작합니다. 이름 입력칸에 글자를 쓰는 중에는 단축키가 동작하지 않습니다.</p>
       <p class="note">버튼을 숨겨도 <strong>무대 크기와 화면비는 바뀌지 않습니다.</strong> 크로마키 설정을 다시 잡을 필요가 없습니다. 숨긴 상태에서도 <code>ESC</code>로 출력 모드를 나올 수 있습니다.</p>
       <p class="warn"><strong>칸 크기를 조정할 때는 송출 전에 미리 끝내두세요.</strong> 끄는 동안은 화면이 미리보기로 늘어났다가 손을 떼는 순간 선명해집니다.</p>
     </div>

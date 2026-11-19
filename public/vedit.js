@@ -513,6 +513,61 @@
       c.ws.send(JSON.stringify({ type: 'remote_clear', id: s.id }));
     }
   }
+  // 무대 화면 전체를 한 장의 이미지로 합성한다.
+  // 배경(단색 또는 배경 이미지) 위에 무대에 올라온 서명을 모두 겹쳐 그린다.
+  // 선택 테두리·크기 조절 손잡이 같은 편집용 표시는 들어가지 않는다.
+  function composeStageImage() {
+    const dpr = window.devicePixelRatio || 1;
+    const w = Math.max(1, Math.round(stage.clientWidth));
+    const h = Math.max(1, Math.round(stage.clientHeight));
+    const out = document.createElement('canvas');
+    out.width = Math.round(w * dpr);
+    out.height = Math.round(h * dpr);
+    const g = out.getContext('2d');
+    g.scale(dpr, dpr);
+    if (bgColor && bgColor !== 'transparent') {
+      g.fillStyle = bgColor;
+      g.fillRect(0, 0, w, h);
+    }
+    if (stageBg && stageBg.getAttribute('src') && stageBg.style.display !== 'none' && stageBg.complete && stageBg.naturalWidth) {
+      try { g.drawImage(stageBg, 0, 0, w, h); } catch {}
+    }
+    const list = [];
+    sources.forEach((s) => s.items.forEach((it) => list.push(it)));
+    list.sort((a, b) => (parseInt(a.el.style.zIndex || '0', 10)) - (parseInt(b.el.style.zIndex || '0', 10)));
+    list.forEach((it) => {
+      if (!it.canvas || !it.canvas.width) return;
+      try { g.drawImage(it.canvas, it.x, it.y, it.w, it.h); } catch {}
+    });
+    return { dataUrl: out.toDataURL('image/png'), count: list.length };
+  }
+
+  // 합성한 무대 화면을 서버에 파일로 저장한다.
+  let stageSaving = false;
+  async function saveStageImage() {
+    if (stageSaving) return;
+    stageSaving = true;
+    try {
+      const { dataUrl, count } = composeStageImage();
+      const r = await fetch('/api/stage-capture?pw=' + encodeURIComponent(pw), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dataUrl }),
+      });
+      if (!r.ok) { showOutputHint('화면 저장 실패 (' + r.status + ')', 2200); return; }
+      showOutputHint(`화면 1장을 저장했습니다 (서명 ${count}개 포함)`, 1800);
+    } catch (e) {
+      showOutputHint('화면 저장 실패 — 서버 연결을 확인하세요', 2400);
+    } finally {
+      stageSaving = false;
+    }
+  }
+
+  ['shotOut', 'shotBtn'].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('click', saveStageImage);
+  });
+
   // 무대에 올라온 모든 태블릿의 서명을 지운다(중복 소스는 한 번만).
   function clearAllTabletSignatures() {
     const done = new Set();
@@ -930,6 +985,8 @@
     editorEl.classList.toggle('output-mode', on);
     exitOutputBtn.style.display = on ? 'block' : 'none';
     clearOutBtn.style.display = on ? 'block' : 'none';
+    const shotOutBtn = document.getElementById('shotOut');
+    if (shotOutBtn) shotOutBtn.style.display = on ? 'block' : 'none';
     if (framesOut) framesOut.style.display = on ? 'block' : 'none';
     if (addSlotOut) addSlotOut.style.display = on ? 'block' : 'none';
     if (bgImgOut) bgImgOut.style.display = on ? 'block' : 'none';
@@ -975,18 +1032,29 @@
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') { setOutput(false); return; }
 
-    // P: 출력 모드에서 버튼과 마우스 커서를 숨기거나 다시 보이게 한다.
     // 글자를 입력하는 중이거나 단축키 조합(Ctrl/Alt 등)일 때는 무시한다.
     const tag = (e.target && e.target.tagName) || '';
     if (/^(INPUT|TEXTAREA|SELECT)$/.test(tag)) return;
     if (e.ctrlKey || e.metaKey || e.altKey) return;
-    // 한글 입력 상태에서는 e.key 가 'ㅔ' 로 오므로 물리 키(KeyP)도 함께 본다.
-    const isP = e.code === 'KeyP' || e.key === 'p' || e.key === 'P' || e.key === 'ㅔ';
-    if (!isP) return;
+    // 아래 단축키들은 출력 모드(전체화면 송출)에서만 동작한다.
     if (!editorEl.classList.contains('output-mode')) return;
-    e.preventDefault();
-    setCleanOutput(!cleanOutput);
-    if (!cleanOutput) bumpCursor();
+
+    // 한글 입력 상태에서는 e.key 가 자음/모음으로 오므로 물리 키(e.code)도 함께 본다.
+
+    // C: 무대 화면 전체(배경 + 올라온 서명 전부)를 한 장으로 저장한다.
+    if (e.code === 'KeyC' || e.key === 'c' || e.key === 'C' || e.key === 'ㅊ') {
+      e.preventDefault();
+      saveStageImage();
+      return;
+    }
+
+    // P: 버튼과 마우스 커서를 숨기거나 다시 보이게 한다.
+    if (e.code === 'KeyP' || e.key === 'p' || e.key === 'P' || e.key === 'ㅔ') {
+      e.preventDefault();
+      setCleanOutput(!cleanOutput);
+      if (!cleanOutput) bumpCursor();
+      return;
+    }
   });
 
   const screenSelect = document.getElementById('screenSelect');

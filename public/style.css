@@ -934,6 +934,9 @@ html, body {
 /* vedit: 출력 모드 '모두 지우기' 플로팅 버튼 (종료 버튼 왼쪽) */
 .exit-output.clear-out { right: 150px; background: rgba(120, 20, 20, 0.6); }
 
+/* vedit: 출력 모드 '화면 저장'(무대 전체 합성) 플로팅 버튼 */
+.exit-output.shot-out { right: 290px; background: rgba(28, 58, 120, 0.65); }
+
 /* vedit: 개별 서명 '태블릿 지우기' 버튼 (⧉ 왼쪽, 선택 시 표시) */
 .vitem .item-clear {
   position: absolute; top: -10px; right: 46px; height: 22px; min-width: 22px; line-height: 18px;

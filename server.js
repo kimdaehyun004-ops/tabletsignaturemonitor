@@ -242,6 +242,28 @@ app.get('/api/qr-pdf', (req, res) => {
   }
 });
 
+const STAGE_DIR = path.join(__dirname, 'data', 'stages');
+fs.mkdirSync(STAGE_DIR, { recursive: true });
+
+// 크로마키 무대 화면을 통째로 찍어 저장한다.
+// 배경 위에 서명 여러 개가 올라간 "최종 송출 화면 그대로"가 한 장으로 들어온다.
+app.post('/api/stage-capture', (req, res) => {
+  if (!isValidViewer(req.query.pw || '')) return res.status(401).json({ error: '비밀번호가 필요합니다.' });
+  const dataUrl = String((req.body && req.body.dataUrl) || '');
+  const match = dataUrl.match(/^data:image\/png;base64,(.+)$/);
+  if (!match) return res.status(400).json({ error: 'png 이미지가 아닙니다.' });
+  const buffer = Buffer.from(match[1], 'base64');
+  if (buffer.length > 12 * 1024 * 1024) return res.status(413).json({ error: '이미지가 너무 큽니다(최대 12MB).' });
+  const filename = `stage_${new Date().toISOString().replace(/[:.]/g, '-')}.png`;
+  try {
+    fs.writeFileSync(path.join(STAGE_DIR, filename), buffer);
+  } catch (e) {
+    console.error('[무대 저장] 실패: ' + e.message);
+    return res.status(500).json({ error: '저장하지 못했습니다.' });
+  }
+  res.json({ ok: true, filename });
+});
+
 const SIGNATURE_FILENAME_RE = /^tablet-(\d+)_(\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z)\.png$/;
 
 function checkAdminPw(req) {
