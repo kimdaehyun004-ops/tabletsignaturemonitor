@@ -715,6 +715,20 @@ wss.on('connection', (ws) => {
       return;
     }
 
+    // 모니터(관리자/게스트)가 특정 태블릿에게 "지금 그려진 서명을 저장하라"고 시킨다.
+    // 송출 화면을 보는 운영자가 태블릿을 만지지 않고 한 번에 저장시키기 위한 것이다.
+    // 실제 저장은 태블릿이 PNG를 만들어 보내오면 서버가 파일로 기록한다.
+    if (msg.type === 'remote_save' && ws.role === 'monitor') {
+      const target = parseInt(msg.id, 10);
+      if (Number.isInteger(target) && target >= 1 && target <= TABLET_COUNT) {
+        const t = tablets.get(target);
+        if (t && t.ws.readyState === t.ws.OPEN) {
+          t.ws.send(JSON.stringify({ type: 'remote_save' }));
+        }
+      }
+      return;
+    }
+
     // 모니터(관리자/게스트)가 특정 태블릿의 접속을 강제로 끊는다.
     // 태블릿에게 "kicked"를 알려 자동 재연결하지 않게 하고, 즉시 미접속으로 처리한다.
     if (msg.type === 'kick' && ws.role === 'monitor') {

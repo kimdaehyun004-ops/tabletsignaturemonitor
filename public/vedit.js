@@ -563,10 +563,40 @@
     }
   }
 
+  // 출력 모드의 '서명 저장' 버튼. 되돌릴 수 없는 일이 아니므로 확인 창은 두지 않는다.
+  const saveOutBtnEl = document.getElementById('saveOut');
+  if (saveOutBtnEl) {
+    saveOutBtnEl.addEventListener('click', () => {
+      const n = saveAllTabletSignatures();
+      showOutputHint(n ? `서명 ${n}건을 저장했습니다` : '무대에 올라온 태블릿이 없습니다', 1500);
+    });
+  }
+
   ['shotOut', 'shotBtn'].forEach((id) => {
     const el = document.getElementById(id);
     if (el) el.addEventListener('click', saveStageImage);
   });
+
+  // 해당 태블릿에게 "지금 서명을 저장하라"고 시킨다. 저장은 서버에 기록된다.
+  function sendRemoteSave(s) {
+    const c = conns[s.vi];
+    if (c && c.ws && c.ws.readyState === WebSocket.OPEN) {
+      c.ws.send(JSON.stringify({ type: 'remote_save', id: s.id }));
+    }
+  }
+  // 무대에 올라온 모든 태블릿의 서명을 한 번에 저장시킨다(중복 소스는 한 번만).
+  function saveAllTabletSignatures() {
+    const done = new Set();
+    let n = 0;
+    sources.forEach((s) => {
+      if (s.items.length && !done.has(s.key)) {
+        done.add(s.key);
+        sendRemoteSave(s);
+        n++;
+      }
+    });
+    return n;
+  }
 
   // 무대에 올라온 모든 태블릿의 서명을 지운다(중복 소스는 한 번만).
   function clearAllTabletSignatures() {
@@ -987,6 +1017,8 @@
     clearOutBtn.style.display = on ? 'block' : 'none';
     const shotOutBtn = document.getElementById('shotOut');
     if (shotOutBtn) shotOutBtn.style.display = on ? 'block' : 'none';
+    const saveOutBtn = document.getElementById('saveOut');
+    if (saveOutBtn) saveOutBtn.style.display = on ? 'block' : 'none';
     if (framesOut) framesOut.style.display = on ? 'block' : 'none';
     if (addSlotOut) addSlotOut.style.display = on ? 'block' : 'none';
     if (bgImgOut) bgImgOut.style.display = on ? 'block' : 'none';
@@ -1040,6 +1072,25 @@
     if (!editorEl.classList.contains('output-mode')) return;
 
     // 한글 입력 상태에서는 e.key 가 자음/모음으로 오므로 물리 키(e.code)도 함께 본다.
+
+    // S: 무대에 올라온 모든 태블릿의 서명을 저장한다. 확인 창을 띄우지 않는다.
+    // (Ctrl+S 같은 조합은 위에서 걸러지므로 브라우저 저장과 겹치지 않는다)
+    if (e.code === 'KeyS' || e.key === 's' || e.key === 'S' || e.key === 'ㄴ') {
+      e.preventDefault();
+      const n = saveAllTabletSignatures();
+      showOutputHint(n ? `서명 ${n}건을 저장했습니다` : '무대에 올라온 태블릿이 없습니다', 1500);
+      return;
+    }
+
+    // R: 무대와 태블릿의 서명을 바로 지운다. 확인 창을 띄우지 않는다.
+    // 송출 중에 다음 사람을 받으려면 한 손으로 즉시 지울 수 있어야 하기 때문이다.
+    // 이미 저장된 서명 파일은 지워지지 않는다. 화면에 그려진 것만 비운다.
+    if (e.code === 'KeyR' || e.key === 'r' || e.key === 'R' || e.key === 'ㄱ') {
+      e.preventDefault();
+      clearAllTabletSignatures();
+      showOutputHint('서명을 지웠습니다', 1200);
+      return;
+    }
 
     // C: 무대 화면 전체(배경 + 올라온 서명 전부)를 한 장으로 저장한다.
     if (e.code === 'KeyC' || e.key === 'c' || e.key === 'C' || e.key === 'ㅊ') {

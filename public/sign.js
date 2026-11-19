@@ -206,6 +206,7 @@
     let reconnectTimer = null;
     let kicked = false; // 관리자가 연결을 끊으면 true. 자동 재연결을 멈춘다.
     let lastServerMsg = Date.now(); // 서버로부터 마지막으로 뭔가 받은 시각(반쪽 연결 감지용)
+    let onRemoteSave = null; // PC에서 원격으로 저장을 시켰을 때 실행할 함수(아래에서 채워진다)
     let pendingPoints = [];
     let flushScheduled = false;
     let drawing = false;
@@ -312,6 +313,8 @@
           ws.close();
         } else if (msg.type === 'background') {
           applyBackground(msg.hasBackground, msg.version);
+        } else if (msg.type === 'remote_save') {
+          if (onRemoteSave) onRemoteSave();
         } else if (msg.type === 'remote_clear') {
           // 모니터(관리자/게스트)가 원격으로 이 태블릿 화면을 지웠다.
           drawing = false;
@@ -467,7 +470,7 @@
       clearSignature();
     });
 
-    document.getElementById('saveBtn').addEventListener('click', () => {
+    function saveSignature() {
       const dataUrl = canvas.toDataURL('image/png');
       if (ws && ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ type: 'save', dataUrl }));
@@ -477,6 +480,12 @@
       // 저장해도 서명은 화면에 그대로 유지한다. 다음 사람이 새로 그리기 시작하거나
       // "지우기"를 누르면 그때 지워진다.
       savedAwaitingClear = true;
-    });
+    }
+
+    document.getElementById('saveBtn').addEventListener('click', saveSignature);
+
+    // PC(크로마키 편집 화면)에서 원격으로 저장을 시킨 경우.
+    // 태블릿에서 저장 버튼을 누른 것과 똑같이 동작한다.
+    onRemoteSave = saveSignature;
   }
 })();
