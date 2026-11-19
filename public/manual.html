@@ -153,6 +153,82 @@
       </ol>
     </div>
     <p class="warn"><strong>화면 자동 꺼짐은 반드시 "없음"으로.</strong> 인터넷 없는 환경(http 주소)에서는 브라우저가 화면 꺼짐을 막을 수 없습니다. 프로그램이 보조 수단을 쓰긴 하지만 기기마다 효과가 다릅니다.</p>
+
+    <h3>공유기 설정 — 처음 한 번만</h3>
+    <p style="color:var(--muted);font-size:14px">한 번 해두면 다음 행사부터는 전원만 켜면 됩니다. 아이피타임 기준입니다.</p>
+
+    <div class="card">
+      <p><strong>① 관리 화면 들어가기</strong></p>
+      <ol>
+        <li>노트북을 공유기 <strong>LAN 포트</strong>에 랜선으로 연결합니다. (인터넷 선은 안 꽂아도 됩니다)</li>
+        <li>브라우저 주소창에 <code>192.168.0.1</code> 입력</li>
+        <li>로그인 이름과 암호 입력 → <strong>[로그인]</strong> → <strong>[관리도구]</strong><br>
+          <span style="color:var(--muted)">공장초기 상태면 이름·암호 둘 다 <code>admin</code> 입니다. 들어가면 바로 바꾸세요.</span></li>
+      </ol>
+    </div>
+
+    <div class="card">
+      <p><strong>② 와이파이 설정</strong> — 왼쪽 메뉴 <code>WiFi 기본 설정</code></p>
+      <ol>
+        <li><strong>네트워크 이름</strong>을 바꿉니다. 예: <code>행사장-5G</code><br>
+          <span style="color:var(--muted)">기본값(iptime5G 등)을 그대로 두면 주변 공유기와 헷갈려 태블릿이 엉뚱한 곳에 붙습니다.</span></li>
+        <li><strong>채널</strong> 옆 <strong>돋보기 아이콘</strong>을 눌러 최적 채널을 찾아 선택합니다.</li>
+        <li><strong>인증 및 암호화</strong>는 <code>WPA3SAE/WPA2PSK + AES</code>. 오래된 태블릿이 안 붙으면 <code>WPA2PSK + AES</code>로 바꿉니다.</li>
+        <li>암호를 8자 이상 넣고 <strong>[적용]</strong>.</li>
+        <li>아래로 내려 <strong>2.4GHz도 다른 이름</strong>으로 설정합니다. 예: <code>행사장-24G</code></li>
+      </ol>
+      <p class="note"><strong>2.4GHz와 5GHz 이름은 반드시 나누세요.</strong> 이름이 같으면 태블릿이 느린 2.4GHz에 붙어도 알 수가 없습니다. 이름이 나뉘어 있어야 <strong>태블릿을 전부 5G에 붙일 수</strong> 있습니다. (아이피타임도 Easy Mesh를 안 쓰면 나누라고 안내합니다)</p>
+    </div>
+
+    <div class="card">
+      <p><strong>③ 공유기가 2대일 때 — 두 번째 공유기만 추가 설정</strong></p>
+      <p style="color:var(--muted);font-size:14px">두 번째 공유기를 먼저 혼자 설정한 뒤에 랜선으로 잇습니다.</p>
+      <ol>
+        <li>두 번째 공유기에 노트북을 연결하고 <code>192.168.0.1</code> → 관리도구로 들어갑니다.</li>
+        <li><code>네트워크 관리</code> → <code>인터넷 설정 정보</code> → <strong>허브/AP 모드</strong> 선택<br>
+          → <strong>[내부 IP 주소 자동 할당]</strong> 체크 후 돋보기 버튼 → <strong>[적용]</strong><br>
+          <span style="color:var(--muted)">이렇게 하면 DHCP가 자동으로 꺼집니다. (펌웨어 15.29.0 이상)</span></li>
+        <li><strong>옛날 펌웨어라 허브/AP 모드가 없다면</strong> 두 가지를 직접 합니다.
+          <ul style="margin-top:7px">
+            <li><code>네트워크 관리</code> → <code>DHCP 서버 설정</code> → <strong>중단</strong></li>
+            <li><code>네트워크 관리</code> → <code>내부 네트워크 설정</code> → 내부 IP를 <code>192.168.0.200</code>으로 변경 → [적용]</li>
+          </ul>
+        </li>
+        <li><code>WiFi 기본 설정</code>에서 이름을 첫 번째와 다르게 합니다. 예: <code>행사장2-5G</code></li>
+        <li><strong>채널을 첫 번째와 멀리 떨어뜨립니다.</strong> 1번은 <strong>36번</strong> 근처, 2번은 <strong>149번</strong> 근처.</li>
+        <li>랜선으로 <strong>1번 공유기 LAN ↔ 2번 공유기 LAN</strong>을 연결합니다.</li>
+      </ol>
+      <p class="stop"><strong>두 번째 공유기의 인터넷(WAN) 포트에는 꽂지 마세요.</strong> 네트워크가 둘로 갈려서 그쪽 태블릿이 노트북을 아예 못 찾습니다. <strong>LAN 포트끼리</strong>입니다.</p>
+      <p class="warn"><strong>채널 분리를 빠뜨리면 2대 쓴 의미가 없습니다.</strong> 같은 채널이면 두 공유기가 서로 순서를 양보하며 기다려서, 공유기는 2대인데 1대 분량만 쓰게 됩니다.</p>
+    </div>
+
+    <div class="card">
+      <p><strong>④ 채널 고르는 요령</strong></p>
+      <ul>
+        <li><strong>36~48</strong> 또는 <strong>149~161</strong> 중에서 고르세요.</li>
+        <li><strong>52~64, 100~144는 피하세요(DFS 채널).</strong> 레이더 확인 때문에 켜질 때 60초가 걸리고, 주변에 레이더 신호가 잡히면 채널이 바뀌면서 태블릿이 끊길 수 있습니다.</li>
+        <li>채널폭은 <strong>80MHz</strong>. 160MHz는 두 공유기의 채널이 겹칩니다.</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <p><strong>⑤ 하지 말아야 할 것</strong></p>
+      <ul>
+        <li><strong>게스트 네트워크에 태블릿을 붙이지 마세요.</strong> 게스트망은 기기끼리 통신을 막아서 태블릿이 노트북을 찾지 못합니다.</li>
+        <li>설정 이름에 <strong>"격리"</strong>가 들어간 항목은 켜지 마세요. 기본값은 꺼져 있으니 건드리지 않으면 됩니다. 혹시 태블릿에서 페이지 자체가 안 열리면 이 설정을 의심해보세요.</li>
+        <li><strong>관리자 암호는 꼭 바꾸세요.</strong> <code>admin</code> 그대로 두지 마세요.</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <p><strong>⑥ 노트북 IP 고정하기</strong> <span style="color:var(--muted)">— 권장(필수는 아님)</span></p>
+      <p>공유기를 재부팅하면 노트북 IP가 바뀔 수 있고, 그러면 <strong>이미 뿌린 QR이 전부 무효</strong>가 됩니다. 고정해두면 이런 일이 없습니다.</p>
+      <ul>
+        <li>공유기에서: <code>네트워크 관리</code> → <code>DHCP 서버 설정</code> 화면에서 노트북에 주소를 수동으로 할당</li>
+        <li>또는 윈도우에서: 네트워크 어댑터 속성 → IPv4 → 고정 IP 직접 입력 <span style="color:var(--muted)">(공유기 메뉴가 헷갈리면 이쪽이 확실합니다)</span></li>
+      </ul>
+      <p style="color:var(--muted);font-size:13.5px">노트북은 랜선으로 연결하므로 문제없지만, 참고로 최신 기기가 와이파이에서 쓰는 <strong>비공개(랜덤) MAC 주소</strong>를 켜두면 공유기의 IP 고정이 풀립니다.</p>
+    </div>
   </section>
 
   <section>
