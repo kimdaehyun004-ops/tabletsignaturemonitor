@@ -298,8 +298,8 @@
         <table>
           <thead><tr><th style="width:18%">키</th><th>동작</th></tr></thead>
           <tbody>
-            <tr><td class="sym"><strong>C</strong></td><td><strong>무대 화면 전체를 한 장으로 저장</strong> — 배경 위에 서명 여러 개가 올라간 송출 화면 그대로</td></tr>
-            <tr><td class="sym"><strong>S</strong></td><td>무대에 올라온 <strong>모든 태블릿의 서명을 이 PC에 저장</strong> (서명 획만, 배경 없이)</td></tr>
+            <tr><td class="sym"><strong>S</strong></td><td><strong>한 번에 다 저장</strong> — 태블릿별 서명 + 무대 화면 전체를 함께</td></tr>
+            <tr><td class="sym"><strong>C</strong></td><td><strong>화면만</strong> 저장 — 배경 위에 서명들이 올라간 한 장</td></tr>
             <tr><td class="sym"><strong>R</strong></td><td>무대와 태블릿의 <strong>서명을 지움</strong></td></tr>
             <tr><td class="sym"><strong>P</strong></td><td>버튼과 마우스 커서 숨김 / 다시 누르면 나타남</td></tr>
             <tr><td class="sym"><strong>ESC</strong></td><td>출력 모드 종료</td></tr>
@@ -319,7 +319,8 @@
           </tbody>
         </table>
       </div>
-      <p><strong>C와 S는 다릅니다.</strong> <code>S</code>는 태블릿마다 <strong>서명 획만</strong> 따로 저장하고, <code>C</code>는 <strong>배경 위에 서명들이 올라간 화면 그대로</strong>를 한 장으로 저장합니다. 기념 이미지는 <code>C</code>, 서명을 따로 쓸 거라면 <code>S</code>입니다. 둘 다 눌러두셔도 됩니다.</p>
+      <p><strong><code>S</code> 한 번이면 둘 다 저장됩니다.</strong> 운영 중에 두 번 누를 필요가 없습니다. 평소에는 <code>S</code>만 쓰시면 됩니다.</p>
+      <p style="color:var(--muted);font-size:13.5px"><code>C</code>는 같은 서명으로 화면 구성만 바꿔가며 여러 장 남길 때처럼, 서명 파일이 중복으로 쌓이는 게 싫을 때 씁니다.</p>
       <p style="color:var(--muted);font-size:13.5px">선택 테두리나 크기 조절 손잡이 같은 편집용 표시는 저장 이미지에 들어가지 않습니다. 배경을 '투명'으로 두고 저장하면 배경이 비어 있는 PNG가 나와 나중에 합성하기 좋습니다.</p>
       <p style="color:var(--muted);font-size:13.5px">한글 입력 상태(<code>ㄴ</code>, <code>ㄱ</code>, <code>ㅔ</code>)에서도 동작합니다. 이름 입력칸에 글자를 쓰는 중에는 단축키가 동작하지 않습니다.</p>
       <p class="note">버튼을 숨겨도 <strong>무대 크기와 화면비는 바뀌지 않습니다.</strong> 크로마키 설정을 다시 잡을 필요가 없습니다. 숨긴 상태에서도 <code>ESC</code>로 출력 모드를 나올 수 있습니다.</p>

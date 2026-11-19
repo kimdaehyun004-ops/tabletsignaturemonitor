@@ -544,8 +544,8 @@
 
   // 합성한 무대 화면을 서버에 파일로 저장한다.
   let stageSaving = false;
-  async function saveStageImage() {
-    if (stageSaving) return;
+  async function saveStageImage(opts) {
+    if (stageSaving) return false;
     stageSaving = true;
     try {
       const { dataUrl, count } = composeStageImage();
@@ -554,22 +554,33 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ dataUrl }),
       });
-      if (!r.ok) { showOutputHint('화면 저장 실패 (' + r.status + ')', 2200); return; }
-      showOutputHint(`화면 1장을 저장했습니다 (서명 ${count}개 포함)`, 1800);
+      if (!r.ok) { showOutputHint('화면 저장 실패 (' + r.status + ')', 2200); return false; }
+      // 합쳐서 저장할 때는 안내를 한 번만 띄우려고 여기서는 조용히 넘어간다.
+      if (!(opts && opts.silent)) {
+        showOutputHint(`화면 1장을 저장했습니다 (서명 ${count}개 포함)`, 1800);
+      }
+      return true;
     } catch (e) {
       showOutputHint('화면 저장 실패 — 서버 연결을 확인하세요', 2400);
+      return false;
     } finally {
       stageSaving = false;
     }
   }
 
+  // 저장을 한 번에 끝낸다: 태블릿별 서명 + 무대 화면 전체.
+  // 운영 중에 두 번 누를 일이 없도록 S 키와 저장 버튼이 이것을 쓴다.
+  async function saveEverything() {
+    const n = saveAllTabletSignatures();
+    const ok = await saveStageImage({ silent: true });
+    if (!ok) return; // 실패 안내는 saveStageImage 가 이미 띄웠다
+    showOutputHint(n ? `서명 ${n}건 + 화면 1장을 저장했습니다` : '화면 1장만 저장했습니다 (무대에 올라온 태블릿 없음)', 1900);
+  }
+
   // 출력 모드의 '서명 저장' 버튼. 되돌릴 수 없는 일이 아니므로 확인 창은 두지 않는다.
   const saveOutBtnEl = document.getElementById('saveOut');
   if (saveOutBtnEl) {
-    saveOutBtnEl.addEventListener('click', () => {
-      const n = saveAllTabletSignatures();
-      showOutputHint(n ? `서명 ${n}건을 저장했습니다` : '무대에 올라온 태블릿이 없습니다', 1500);
-    });
+    saveOutBtnEl.addEventListener('click', saveEverything);
   }
 
   ['shotOut', 'shotBtn'].forEach((id) => {
@@ -1077,8 +1088,7 @@
     // (Ctrl+S 같은 조합은 위에서 걸러지므로 브라우저 저장과 겹치지 않는다)
     if (e.code === 'KeyS' || e.key === 's' || e.key === 'S' || e.key === 'ㄴ') {
       e.preventDefault();
-      const n = saveAllTabletSignatures();
-      showOutputHint(n ? `서명 ${n}건을 저장했습니다` : '무대에 올라온 태블릿이 없습니다', 1500);
+      saveEverything();
       return;
     }
 
