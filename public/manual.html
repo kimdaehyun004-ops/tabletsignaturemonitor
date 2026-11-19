@@ -1,0 +1,351 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>서명식 현장 운영 매뉴얼</title>
+<style>
+  /* 레이아웃: 시간 순서대로 내려가는 한 줄 흐름 — 전날 · 당일 설치 · 운영 · 종료 · 문제해결 */
+  :root {
+    --bg: #f6f7f8;
+    --card: #ffffff;
+    --fg: #14181c;
+    --muted: #5d6771;
+    --line: #d6dbe0;
+    --accent: #0b7a4b;
+    --accent-soft: #e4f3ec;
+    --warn: #a8500c;
+    --warn-soft: #fdf0e3;
+    --stop: #b3261e;
+    --stop-soft: #fcebea;
+    --font-sans: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+    --font-mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #111518; --card: #191f24; --fg: #e7ecef; --muted: #98a3ac; --line: #2b3238;
+      --accent: #3ccb8d; --accent-soft: #14281f; --warn: #e2a05a; --warn-soft: #2a2015;
+      --stop: #f08b82; --stop-soft: #2d1817; color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #111518; --card: #191f24; --fg: #e7ecef; --muted: #98a3ac; --line: #2b3238;
+    --accent: #3ccb8d; --accent-soft: #14281f; --warn: #e2a05a; --warn-soft: #2a2015;
+    --stop: #f08b82; --stop-soft: #2d1817; color-scheme: dark;
+  }
+
+  html, body { margin: 0; padding: 0; }
+  img { max-width: 100%; }
+  body { background: var(--bg); color: var(--fg); font-family: var(--font-sans); font-size: 15px; line-height: 1.68; }
+  .wrap {
+    max-width: 880px; margin: 0 auto;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-block: 34px 64px;
+    display: flex; flex-direction: column; gap: 40px;
+  }
+
+  header { display: flex; flex-direction: column; gap: 10px; }
+  .kicker { font-size: 12.5px; font-weight: 700; letter-spacing: .12em; color: var(--accent); }
+  h1 { margin: 0; font-size: 30px; font-weight: 700; letter-spacing: -.02em; text-wrap: balance; }
+  .lead { margin: 0; color: var(--muted); max-width: 60ch; }
+
+  section { display: flex; flex-direction: column; gap: 14px; }
+  h2 {
+    margin: 0; font-size: 20px; font-weight: 700; letter-spacing: -.01em;
+    padding-bottom: 10px; border-bottom: 2px solid var(--line);
+    display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+  }
+  h2 .step { font-family: var(--font-mono); font-size: 13px; color: var(--accent); font-weight: 600; }
+  h2 .when { font-size: 13px; font-weight: 500; color: var(--muted); margin-left: auto; }
+  h3 { margin: 6px 0 0; font-size: 16px; font-weight: 700; }
+
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+  ol, ul { margin: 0; padding-left: 21px; display: flex; flex-direction: column; gap: 9px; }
+  p { margin: 0; }
+  code { font-family: var(--font-mono); font-size: .87em; background: var(--accent-soft); color: var(--accent); padding: 1px 6px; border-radius: 5px; word-break: break-all; }
+  strong { font-weight: 700; }
+  .hl { color: var(--accent); font-weight: 700; }
+
+  /* 체크리스트 */
+  .checks { list-style: none; padding: 0; gap: 2px; }
+  .checks li { padding: 0; }
+  .checks label { display: flex; gap: 11px; align-items: flex-start; padding: 7px 9px; border-radius: 8px; cursor: pointer; }
+  .checks label:hover { background: var(--accent-soft); }
+  .checks input { margin: 5px 0 0; width: 17px; height: 17px; flex: 0 0 auto; accent-color: var(--accent); }
+  .checks input:checked + span { color: var(--muted); text-decoration: line-through; }
+  .reset { align-self: flex-start; padding: 6px 12px; border: 1px solid var(--line); border-radius: 7px; background: var(--card); color: var(--muted); font-size: 12.5px; font-family: inherit; cursor: pointer; }
+  .reset:hover { color: var(--fg); border-color: var(--muted); }
+
+  .note { border-left: 3px solid var(--accent); background: var(--accent-soft); padding: 12px 16px; border-radius: 0 8px 8px 0; font-size: 14px; }
+  .warn { border-left: 3px solid var(--warn); background: var(--warn-soft); padding: 12px 16px; border-radius: 0 8px 8px 0; font-size: 14px; color: var(--warn); }
+  .warn strong { color: var(--warn); }
+  .stop { border-left: 3px solid var(--stop); background: var(--stop-soft); padding: 12px 16px; border-radius: 0 8px 8px 0; font-size: 14px; color: var(--stop); }
+  .stop strong { color: var(--stop); }
+
+  .tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--card); }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; min-width: 520px; }
+  th, td { text-align: left; padding: 11px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { background: var(--accent-soft); color: var(--accent); font-weight: 700; font-size: 13px; }
+  tr:last-child td { border-bottom: 0; }
+  td.sym { font-weight: 600; white-space: nowrap; }
+
+  .fill { font-family: var(--font-mono); border-bottom: 1.5px solid var(--muted); padding: 0 34px; }
+  .cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 14px; }
+  footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line); padding-top: 18px; }
+
+  @media print {
+    body { background: #fff; }
+    .reset { display: none; }
+    section { break-inside: avoid; }
+    h2 { break-after: avoid; }
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <p class="kicker">인터넷 없이 · 공유기만으로</p>
+    <h1>서명식 현장 운영 매뉴얼</h1>
+    <p class="lead">태블릿에 받은 서명을 PC 화면에 실시간으로 띄우는 프로그램입니다. 행사장에 인터넷 회선이 없어도 공유기 하나만 있으면 동작합니다.</p>
+  </header>
+
+  <section>
+    <h2><span class="step">00</span> 준비물 <span class="when">빠뜨리면 현장에서 못 구합니다</span></h2>
+    <div class="card">
+      <ul class="checks" data-group="prep">
+        <li><label><input type="checkbox"><span><strong>노트북</strong> — Node.js가 설치되어 있어야 합니다</span></label></li>
+        <li><label><input type="checkbox"><span><strong>USB</strong> — 프로그램 폴더 전체 (<code>node_modules</code> 폴더 포함)</span></label></li>
+        <li><label><input type="checkbox"><span><strong>공유기</strong> 1~2대 + 전원 어댑터 <span style="color:var(--muted)">(태블릿 20대 넘으면 2대)</span></span></label></li>
+        <li><label><input type="checkbox"><span><strong>랜선 2개</strong> — 노트북용 2~3m, 공유기끼리 연결용 10~20m</span></label></li>
+        <li><label><input type="checkbox"><span><strong>멀티탭</strong> — 노트북 + 공유기 전원</span></label></li>
+        <li><label><input type="checkbox"><span><strong>태블릿 + 충전기</strong> — 대수만큼. 충전기는 넉넉히</span></label></li>
+        <li><label><input type="checkbox"><span><strong>터치펜</strong> — 손가락보다 서명이 깔끔합니다</span></label></li>
+      </ul>
+      <button type="button" class="reset" data-reset="prep">체크 지우기</button>
+    </div>
+    <p class="note">인터넷 회선(랜선을 벽에 꽂는 것)은 <strong>필요 없습니다.</strong> 공유기만 있으면 됩니다.</p>
+  </section>
+
+  <section>
+    <h2><span class="step">01</span> 행사 전날 — 사무실에서 <span class="when">인터넷 필요 · 1회</span></h2>
+    <div class="card">
+      <ol>
+        <li><strong><code>1_준비.bat</code> 더블클릭.</strong> 필요한 파일이 설치됩니다. 한 번만 하면 됩니다.<br>
+          <span style="color:var(--muted)">Node.js가 없다고 나오면 <code>nodejs.org</code>에서 LTS 버전을 먼저 설치하세요.</span></li>
+        <li><strong><code>.env</code> 파일을 메모장으로 열어 설정합니다.</strong>
+          <ul style="margin-top:7px">
+            <li><code>ADMIN_PASSWORD</code> — 관리자/모니터 비밀번호. <span class="hl">기본값에서 꼭 바꾸세요</span></li>
+            <li><code>TABLET_TOKEN</code> — 태블릿 접속 토큰. <span class="hl">이것도 바꾸세요</span></li>
+            <li><code>TABLET_COUNT</code> — 쓸 태블릿 대수 (기본 30)</li>
+            <li><code>BACKUP_DIR</code> — 서명 사본이 쌓일 폴더. 예: <code>C:/Users/user/Desktop/서명백업</code></li>
+          </ul>
+        </li>
+        <li><strong>폴더를 통째로 USB에 복사.</strong> <code>node_modules</code> 폴더가 같이 복사됐는지 확인하세요. 이게 없으면 현장에서 실행되지 않습니다.</li>
+        <li><strong>태블릿 설정을 미리 해둡니다.</strong> 대수가 많으면 현장에서 할 시간이 없습니다.
+          <ul style="margin-top:7px">
+            <li>설정 → 디스플레이 → <strong>화면 자동 꺼짐 → "없음"</strong></li>
+            <li><strong>모바일 데이터 끄기</strong></li>
+            <li>화면 밝기 최대, 배터리 완충</li>
+          </ul>
+        </li>
+      </ol>
+    </div>
+    <p class="warn"><strong>화면 자동 꺼짐은 반드시 "없음"으로.</strong> 인터넷 없는 환경(http 주소)에서는 브라우저가 화면 꺼짐을 막을 수 없습니다. 프로그램이 보조 수단을 쓰긴 하지만 기기마다 효과가 다릅니다.</p>
+  </section>
+
+  <section>
+    <h2><span class="step">02</span> 행사 당일 — 설치 <span class="when">약 15분</span></h2>
+    <div class="card">
+      <ol>
+        <li><strong>공유기 전원을 켭니다.</strong> 인터넷 선은 꽂지 않습니다.
+          <ul style="margin-top:7px">
+            <li>공유기가 2대라면 <strong>채널을 멀리 벌려두세요</strong> — 하나는 36번, 다른 하나는 149번 근처. 채널폭은 80MHz</li>
+            <li>두 공유기의 <strong>LAN 포트끼리</strong> 랜선 연결. 둘째 공유기는 DHCP 끄기</li>
+          </ul>
+        </li>
+        <li><strong>노트북을 공유기 LAN 포트에 랜선으로 연결합니다.</strong> 무선보다 안정적입니다.</li>
+        <li><strong><code>2_시작.bat</code> 더블클릭.</strong> 검은 창이 뜨고 브라우저가 자동으로 열립니다.</li>
+        <li><strong>방화벽 창이 뜨면 "개인 네트워크" 허용</strong>을 누릅니다. <span class="hl">놓치면 태블릿만 접속이 안 됩니다.</span></li>
+        <li><strong>검은 창의 <code>이 PC 주소</code>를 확인합니다.</strong> <code>http://192.168.x.x:3000</code> 형태여야 합니다. 브라우저 주소창도 같은 주소인지 보세요.</li>
+        <li><strong>「📄 PDF로 받기」를 눌러 휴대폰에 저장합니다.</strong> 태블릿 1대당 1페이지짜리 QR 묶음입니다.</li>
+        <li><strong>태블릿으로 QR을 스캔합니다.</strong> 번호 순서대로 하고, 태블릿 뒷면에 번호 스티커를 붙여두면 나중에 편합니다.</li>
+        <li><strong>모니터링 화면에서 전부 초록불인지 확인합니다.</strong> 상단에 태블릿 번호와 접속 상태가 나옵니다.</li>
+      </ol>
+    </div>
+    <p class="stop"><strong>주소가 <code>localhost</code>로 보이면 멈추세요.</strong> 그 상태로 만든 QR은 태블릿에서 절대 연결되지 않습니다. 검은 창의 <code>이 PC 주소</code>(192.168로 시작)로 다시 접속한 뒤 QR을 받으세요. 페이지 맨 위에 경고가 떠 있으면 바로 이 상황입니다.</p>
+  </section>
+
+  <section>
+    <h2><span class="step">03</span> 운영 중</h2>
+
+    <h3>서명 받기</h3>
+    <div class="card">
+      <ol>
+        <li>참가자가 태블릿에 서명합니다. 손바닥이 닿아도 먼저 닿은 손가락만 인식합니다.</li>
+        <li><strong>「서명 완료 저장」</strong>을 누릅니다. 서명은 화면에 그대로 남습니다.</li>
+        <li>다음 사람이 <strong>그냥 그리기 시작하면 자동으로 지워집니다.</strong> 따로 지울 필요 없습니다.</li>
+      </ol>
+      <p class="note"><strong>와이파이가 순간 끊겨도 서명은 사라지지 않습니다.</strong> 태블릿 안에 보관됐다가 다시 연결되면 자동으로 전송됩니다. 화면에 <strong>「미전송 N건」</strong>이 뜨면 연결이 끊긴 상태입니다. 복구되면 저절로 사라집니다.</p>
+    </div>
+
+    <h3>화면 둘러보기</h3>
+    <div class="card">
+      <p>QR 페이지 맨 위의 탭으로 바로 이동합니다.</p>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>탭</th><th>용도</th></tr></thead>
+          <tbody>
+            <tr><td class="sym">실시간 모니터링</td><td>태블릿별 서명이 그려지는 모습을 한 화면에서 봅니다</td></tr>
+            <tr><td class="sym">실시간 크로마키 편집</td><td>초록 배경 위에 서명을 올려 LED·프로젝터로 송출합니다</td></tr>
+            <tr><td class="sym">저장 서명 편집</td><td>저장된 서명을 모아 다듬습니다</td></tr>
+            <tr><td class="sym">관리자</td><td>서명 다운로드, 배경 이미지 업로드, 게스트 코드 발급</td></tr>
+            <tr><td class="sym">통합 현황</td><td>서버를 여러 대 쓸 때 접속 현황을 모아 봅니다</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <h3>크로마키로 송출하기</h3>
+    <div class="card">
+      <ol>
+        <li><strong>실시간 크로마키 편집</strong>으로 들어갑니다.</li>
+        <li><strong>「접속된 것 모두 추가」</strong>로 태블릿을 무대에 올리고, 끌어서 위치와 크기를 맞춥니다.</li>
+        <li><strong>「출력 모드」</strong>를 누르면 무대만 전체화면이 됩니다.</li>
+        <li><strong><code>P</code> 키를 누르면 화면의 버튼과 마우스 커서가 사라집니다.</strong> 송출에 잡히지 않습니다. 다시 <code>P</code>를 누르면 나타납니다.</li>
+      </ol>
+      <p class="note">버튼을 숨겨도 <strong>무대 크기와 화면비는 바뀌지 않습니다.</strong> 크로마키 설정을 다시 잡을 필요가 없습니다. 숨긴 상태에서도 <code>ESC</code>로 출력 모드를 나올 수 있습니다.</p>
+      <p class="warn"><strong>칸 크기를 조정할 때는 송출 전에 미리 끝내두세요.</strong> 끄는 동안은 화면이 미리보기로 늘어났다가 손을 떼는 순간 선명해집니다.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="step">04</span> 행사 종료 후 <span class="when">서버 끄기 전에</span></h2>
+    <div class="card">
+      <ul class="checks" data-group="close">
+        <li><label><input type="checkbox"><span><strong>관리자 → 「전체 ZIP 다운로드」</strong>로 서명을 한 번에 받습니다</span></label></li>
+        <li><label><input type="checkbox"><span><strong>백업 폴더를 확인</strong>합니다 (<code>.env</code>의 <code>BACKUP_DIR</code>). 폴더째 USB에 복사하세요</span></label></li>
+        <li><label><input type="checkbox"><span>서명 개수가 참가자 수와 맞는지 세어봅니다</span></label></li>
+        <li><label><input type="checkbox"><span>태블릿 화면에 <strong>「미전송」 표시가 남아 있지 않은지</strong> 전부 확인합니다</span></label></li>
+        <li><label><input type="checkbox"><span>그 다음에 <strong>검은 창을 닫아</strong> 서버를 끕니다</span></label></li>
+      </ul>
+      <button type="button" class="reset" data-reset="close">체크 지우기</button>
+    </div>
+    <p class="stop"><strong>서버를 끄기 전에 반드시 파일을 받으세요.</strong> 태블릿에 「미전송」이 남은 채로 서버를 끄면 그 서명은 올라가지 못합니다.</p>
+  </section>
+
+  <section>
+    <h2><span class="step">05</span> 문제가 생겼을 때</h2>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th style="width:38%">증상</th><th>원인과 조치</th></tr></thead>
+        <tbody>
+          <tr><td class="sym">주소가 <code>localhost</code>이고<br>「연결할 수 없음」</td><td>QR이 잘못 만들어졌습니다. 검은 창의 <code>이 PC 주소</code>(192.168…)로 다시 접속해 QR을 받으세요</td></tr>
+          <tr><td class="sym">주소는 192.168인데<br><strong>페이지가 안 열림</strong></td><td>네트워크가 다릅니다. ①다른 공유기에 붙었는지 ②게스트 와이파이인지 ③공유기의 <strong>무선 격리</strong>가 켜져 있는지 확인하세요</td></tr>
+          <tr><td class="sym">페이지는 열리는데<br><strong>「재연결 중…」</strong></td><td>PC 방화벽입니다. 제어판 → 방화벽 → 앱 허용에서 Node.js를 <strong>개인 네트워크</strong> 허용</td></tr>
+          <tr><td class="sym">QR이 잘 안 찍힘</td><td>QR 크기를 <strong>「아주 크게」</strong>로 바꾸거나, QR을 눌러 <strong>화면 가득</strong> 띄우세요. 휴대폰 PDF를 보여줘도 됩니다</td></tr>
+          <tr><td class="sym">태블릿이 <strong>「끊김」</strong>으로 표시</td><td>35초 이상 반응이 없으면 끊김으로 봅니다. 화면을 켜면 자동으로 다시 붙습니다</td></tr>
+          <tr><td class="sym">태블릿 화면이 꺼짐</td><td>OS 설정에서 화면 자동 꺼짐을 <strong>「없음」</strong>으로. 충전기를 꽂아두세요</td></tr>
+          <tr><td class="sym">「포트가 이미 사용 중」</td><td>서버가 이미 켜져 있습니다. 검은 창을 하나만 남기세요</td></tr>
+          <tr><td class="sym">「node_modules 폴더 없음」</td><td>USB 복사가 덜 됐습니다. 인터넷 되는 곳에서 <code>1_준비.bat</code> 실행</td></tr>
+          <tr><td class="sym">검은 창에 <strong>「네트워크 주소를<br>찾지 못했습니다」</strong></td><td>노트북이 공유기에 연결되어 있지 않습니다. 랜선이나 와이파이를 확인하세요</td></tr>
+          <tr><td class="sym">서명이 늦게 뜸</td><td>오프라인 구성에서는 드뭅니다. 태블릿이 2.4GHz에 붙었는지 확인하고 5GHz로 옮기세요</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="step">06</span> 비상 대응</h2>
+    <div class="cols">
+      <div class="card">
+        <h3 style="margin:0">태블릿 1대만 안 될 때</h3>
+        <ol>
+          <li>브라우저를 새로고침</li>
+          <li>와이파이를 껐다 켜기</li>
+          <li>그래도 안 되면 <strong>예비 태블릿으로 교체.</strong> 같은 번호 QR을 스캔하면 그대로 이어집니다</li>
+        </ol>
+      </div>
+      <div class="card">
+        <h3 style="margin:0">전부 안 될 때</h3>
+        <ol>
+          <li>검은 창이 살아 있는지 확인</li>
+          <li>공유기 전원을 껐다 켜기 <span style="color:var(--muted)">(IP가 바뀌면 QR을 다시 받아야 합니다)</span></li>
+          <li>노트북의 와이파이/랜선 연결 확인</li>
+        </ol>
+      </div>
+      <div class="card">
+        <h3 style="margin:0">노트북이 멈췄을 때</h3>
+        <ol>
+          <li>이미 저장된 서명은 <strong>디스크에 남아 있습니다.</strong> 날아가지 않습니다</li>
+          <li>재부팅 후 <code>2_시작.bat</code> 다시 실행</li>
+          <li>IP가 그대로면 태블릿은 <strong>자동으로 다시 붙습니다</strong></li>
+        </ol>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="step">07</span> 현장 메모 <span class="when">행사 전에 적어두세요</span></h2>
+    <div class="card">
+      <div class="tablewrap">
+        <table>
+          <tbody>
+            <tr><td class="sym">이 PC 주소</td><td><span class="fill">&nbsp;</span> <span style="color:var(--muted)">검은 창에 표시됨</span></td></tr>
+            <tr><td class="sym">관리자 비밀번호</td><td><span class="fill">&nbsp;</span> <span style="color:var(--muted)">.env의 ADMIN_PASSWORD</span></td></tr>
+            <tr><td class="sym">태블릿 토큰</td><td><span class="fill">&nbsp;</span> <span style="color:var(--muted)">.env의 TABLET_TOKEN</span></td></tr>
+            <tr><td class="sym">와이파이 이름 / 비번</td><td><span class="fill">&nbsp;</span></td></tr>
+            <tr><td class="sym">태블릿 대수</td><td><span class="fill">&nbsp;</span></td></tr>
+            <tr><td class="sym">백업 폴더</td><td><span class="fill">&nbsp;</span></td></tr>
+            <tr><td class="sym">현장 담당 연락처</td><td><span class="fill">&nbsp;</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p style="color:var(--muted);font-size:13.5px">화면 주소는 모두 <code>이 PC 주소</code> 뒤에 붙입니다. 예: <code>/monitor.html</code>, <code>/admin.html</code>, <code>/vedit.html</code>, <code>/links.html</code></p>
+    </div>
+  </section>
+
+  <footer>
+    이 프로그램은 인터넷 없이 동작하며, 서명은 노트북 디스크와 백업 폴더에만 저장됩니다. 외부로 전송되지 않습니다.
+  </footer>
+</div>
+
+<script>
+  // 체크 상태를 이 기기에만 기억해 둡니다. 저장이 막힌 환경에서도 페이지는 정상 동작합니다.
+  (function () {
+    var KEY = 'signManualChecks';
+    var state = {};
+    try { state = JSON.parse(localStorage.getItem(KEY) || '{}') || {}; } catch (e) { state = {}; }
+
+    function save() {
+      try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) { /* 저장 못해도 그냥 넘어감 */ }
+    }
+
+    document.querySelectorAll('.checks').forEach(function (list) {
+      var group = list.dataset.group;
+      list.querySelectorAll('input[type=checkbox]').forEach(function (box, i) {
+        var id = group + ':' + i;
+        box.id = 'chk-' + group + '-' + i;
+        if (state[id]) box.checked = true;
+        box.addEventListener('change', function () {
+          state[id] = box.checked;
+          save();
+        });
+      });
+    });
+
+    document.querySelectorAll('[data-reset]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var group = btn.dataset.reset;
+        document.querySelectorAll('.checks[data-group="' + group + '"] input').forEach(function (box, i) {
+          box.checked = false;
+          state[group + ':' + i] = false;
+        });
+        save();
+      });
+    });
+  })();
+</script>
+</body>
+</html>
