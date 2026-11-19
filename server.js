@@ -7,6 +7,7 @@ const { exec } = require('child_process');
 const express = require('express');
 const { WebSocketServer } = require('ws');
 const store = require('./store');
+const { buildQrPdf } = require('./lib/qrpdf');
 
 const PORT = process.env.PORT || 3000;
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '';
@@ -213,6 +214,32 @@ app.get('/api/host-info', (req, res) => {
   const protocol = forwardedProto ? forwardedProto.split(',')[0].trim() : req.protocol;
   const host = req.get('host');
   res.json({ base: `${protocol}://${host}`, tabletCount: TABLET_COUNT, tabletToken: TABLET_TOKEN, instanceName: INSTANCE_NAME });
+});
+
+// 태블릿 연결 QR을 PDF 한 개로 내려준다. 태블릿 1대당 1페이지.
+// 휴대폰에 넣어 다니면서 현장에서 바로 열어 태블릿으로 스캔하기 위한 것이다.
+// QR 내용은 "지금 접속한 주소"를 기준으로 만들어지므로, 반드시 이 PC의
+// 네트워크 주소(http://192.168...)로 접속한 상태에서 받아야 한다.
+app.get('/api/qr-pdf', (req, res) => {
+  const forwardedProto = req.headers['x-forwarded-proto'];
+  const protocol = forwardedProto ? forwardedProto.split(',')[0].trim() : req.protocol;
+  const host = req.get('host');
+  const base = `${protocol}://${host}`;
+  try {
+    const pdf = buildQrPdf({
+      base,
+      tabletToken: TABLET_TOKEN,
+      tabletCount: TABLET_COUNT,
+      instanceName: INSTANCE_NAME,
+    });
+    const stamp = new Date().toISOString().slice(0, 10);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="tablet-qr-${stamp}.pdf"`);
+    res.end(pdf);
+  } catch (e) {
+    console.error('[QR PDF] 생성 실패:', e.message);
+    res.status(500).json({ error: 'PDF를 만들지 못했습니다.' });
+  }
 });
 
 const SIGNATURE_FILENAME_RE = /^tablet-(\d+)_(\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z)\.png$/;

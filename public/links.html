@@ -44,7 +44,25 @@
     background: #f8fafc; color: #0f172a; font-size: 14px; cursor: pointer;
   }
   .qr-toolbar button.active { background: #2563eb; border-color: #2563eb; color: #fff; font-weight: 700; }
-  .qr-toolbar button#printBtn { margin-left: auto; }
+  .qr-toolbar button#printBtn { margin-left: 0; }
+  .qr-toolbar #pdfBtn {
+    margin-left: auto; padding: 8px 14px; border: 1px solid #2563eb; border-radius: 8px;
+    background: #2563eb; color: #fff; font-size: 14px; font-weight: 700;
+    text-decoration: none; cursor: pointer;
+  }
+  .qr-toolbar #pdfBtn:hover { background: #1d4ed8; }
+
+  /* 첫 화면에서 바로 넘어갈 수 있는 탭 */
+  .page-tabs {
+    display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px;
+    padding-bottom: 14px; border-bottom: 1px solid #ddd;
+  }
+  .page-tabs a {
+    padding: 9px 15px; border: 1px solid #cbd5e1; border-radius: 8px;
+    background: #fff; color: #0f172a; font-size: 14px; font-weight: 600;
+    text-decoration: none; white-space: nowrap;
+  }
+  .page-tabs a:hover { background: #eef2ff; border-color: #2563eb; color: #1d4ed8; }
 
   /* 전체화면 확대 보기 */
   .qr-overlay {
@@ -91,6 +109,14 @@
 </head>
 <body>
   <div class="links-page">
+    <nav class="page-tabs">
+      <a href="monitor.html" target="_blank" rel="noopener">실시간 모니터링</a>
+      <a href="dashboard.html" target="_blank" rel="noopener">통합 현황</a>
+      <a href="vedit.html" target="_blank" rel="noopener">실시간 크로마키 편집</a>
+      <a href="board.html" target="_blank" rel="noopener">저장 서명 편집</a>
+      <a href="admin.html" target="_blank" rel="noopener">관리자</a>
+    </nav>
+
     <h1>태블릿 연결 QR코드 <span id="instanceBadge" style="display:none;"></span></h1>
     <p class="hint" id="hintText">각 태블릿 카메라로 해당 번호의 QR코드를 스캔하면 자동으로 서명 화면에 연결됩니다.</p>
 
@@ -99,9 +125,10 @@
       <button type="button" data-size="normal">보통</button>
       <button type="button" data-size="big">크게</button>
       <button type="button" data-size="huge">아주 크게</button>
+      <a id="pdfBtn" href="/api/qr-pdf" download>📄 PDF로 받기</a>
       <button type="button" id="printBtn">🖨 인쇄 (태블릿당 1장)</button>
     </div>
-    <p class="hint">QR을 누르면 <b>화면 가득 크게</b> 볼 수 있습니다. 태블릿을 가까이 대기 어려울 때 사용하세요.</p>
+    <p class="hint">QR을 누르면 <b>화면 가득 크게</b> 볼 수 있습니다. <b>PDF로 받기</b>를 누르면 태블릿 1대당 1페이지짜리 PDF가 받아집니다. 휴대폰에 넣어 다니면서 열어 보여주면 태블릿으로 바로 스캔할 수 있습니다.</p>
 
     <div class="cards">
       <div class="card monitor-card">
